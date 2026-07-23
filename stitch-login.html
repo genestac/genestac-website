@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Genestac Therapeutics | Access Portal</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=Manrope:wght@600;700;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind Configuration -->
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "on-tertiary-fixed-variant": "#444749",
+                    "primary-fixed": "#6ffbbe",
+                    "surface-container-highest": "#d3e4fe",
+                    "on-secondary-fixed": "#131b2e",
+                    "tertiary-fixed-dim": "#c4c7c9",
+                    "surface-variant": "#d3e4fe",
+                    "secondary": "#565e74",
+                    "secondary-fixed": "#dae2fd",
+                    "on-primary": "#ffffff",
+                    "surface": "#f8f9ff",
+                    "error": "#ba1a1a",
+                    "surface-tint": "#006c49",
+                    "outline-variant": "#bbcabf",
+                    "tertiary": "#5c5f61",
+                    "inverse-on-surface": "#eaf1ff",
+                    "surface-container": "#e5eeff",
+                    "on-primary-fixed-variant": "#005236",
+                    "inverse-primary": "#4edea3",
+                    "tertiary-fixed": "#e0e3e5",
+                    "background": "#f8f9ff",
+                    "on-background": "#0b1c30",
+                    "surface-container-high": "#dce9ff",
+                    "error-container": "#ffdad6",
+                    "tertiary-container": "#a0a3a5",
+                    "secondary-fixed-dim": "#bec6e0",
+                    "on-secondary-fixed-variant": "#3f465c",
+                    "primary-fixed-dim": "#4edea3",
+                    "on-tertiary-fixed": "#191c1e",
+                    "on-primary-container": "#00422b",
+                    "on-tertiary": "#ffffff",
+                    "inverse-surface": "#213145",
+                    "surface-container-lowest": "#ffffff",
+                    "on-surface": "#0b1c30",
+                    "on-surface-variant": "#3c4a42",
+                    "surface-container-low": "#eff4ff",
+                    "surface-bright": "#f8f9ff",
+                    "on-tertiary-container": "#36393b",
+                    "surface-dim": "#cbdbf5",
+                    "on-secondary": "#ffffff",
+                    "primary-container": "#10b981",
+                    "on-error": "#ffffff",
+                    "secondary-container": "#dae2fd",
+                    "on-error-container": "#93000a",
+                    "on-secondary-container": "#5c647a",
+                    "primary": "#006c49",
+                    "outline": "#6c7a71",
+                    "on-primary-fixed": "#002113"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.25rem",
+                    "lg": "0.5rem",
+                    "xl": "0.75rem",
+                    "2xl": "1rem",
+                    "full": "9999px"
+            },
+            "spacing": {
+                    "margin-desktop": "64px",
+                    "margin-mobile": "20px",
+                    "unit": "8px",
+                    "container-max": "1280px",
+                    "section-gap": "120px",
+                    "gutter": "24px"
+            },
+            "fontFamily": {
+                    "label-md": ["Inter"],
+                    "label-sm": ["Inter"],
+                    "display-lg": ["Manrope"],
+                    "headline-sm": ["Manrope"],
+                    "headline-md": ["Manrope"],
+                    "display-lg-mobile": ["Manrope"],
+                    "body-lg": ["Inter"],
+                    "body-md": ["Inter"]
+            },
+            "fontSize": {
+                    "label-md": ["14px", {"lineHeight": "20px", "letterSpacing": "0.01em", "fontWeight": "500"}],
+                    "label-sm": ["12px", {"lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "600"}],
+                    "display-lg": ["48px", {"lineHeight": "56px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                    "headline-sm": ["24px", {"lineHeight": "32px", "fontWeight": "600"}],
+                    "headline-md": ["30px", {"lineHeight": "38px", "letterSpacing": "-0.01em", "fontWeight": "600"}],
+                    "display-lg-mobile": ["32px", {"lineHeight": "40px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                    "body-lg": ["18px", {"lineHeight": "28px", "fontWeight": "400"}],
+                    "body-md": ["16px", {"lineHeight": "24px", "fontWeight": "400"}]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        .active-tab {
+            color: #006c49;
+            position: relative;
+        }
+        .active-tab::after {
+            content: '';
+            position: absolute;
+            bottom: -2px;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background-color: #10b981;
+            border-radius: 999px;
+        }
+        .hidden-form {
+            display: none;
+        }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-surface text-on-background font-body-md min-h-screen flex flex-col">
+<!-- TopAppBar -->
+<header class="w-full top-0 sticky bg-surface dark:bg-surface-dim z-50">
+<div class="flex items-center justify-between px-margin-mobile md:px-margin-desktop py-4 w-full max-w-container-max mx-auto">
+<div class="flex items-center gap-3 cursor-pointer active:scale-95 transition-transform">
+<span class="material-symbols-outlined text-primary dark:text-inverse-primary" style="font-size: 32px;">medical_services</span>
+<span class="font-headline-sm text-headline-sm font-bold text-primary dark:text-inverse-primary">Genestac Therapeutics</span>
+</div>
+<div class="hidden md:flex gap-8">
+<span class="font-label-md text-label-md text-secondary dark:text-secondary-fixed-dim hover:bg-surface-container dark:hover:bg-surface-container-high transition-colors px-3 py-1 rounded-lg cursor-pointer">Treatments</span>
+<span class="font-label-md text-label-md text-secondary dark:text-secondary-fixed-dim hover:bg-surface-container dark:hover:bg-surface-container-high transition-colors px-3 py-1 rounded-lg cursor-pointer">Our Science</span>
+<span class="font-label-md text-label-md text-secondary dark:text-secondary-fixed-dim hover:bg-surface-container dark:hover:bg-surface-container-high transition-colors px-3 py-1 rounded-lg cursor-pointer">Locations</span>
+</div>
+</div>
+</header>
+<main class="flex-grow flex items-center justify-center py-16 px-margin-mobile md:px-margin-desktop relative overflow-hidden">
+<!-- Background Ambient Element -->
+<div class="absolute top-[-10%] right-[-5%] w-[500px] h-[500px] bg-primary-fixed/10 rounded-full blur-[120px] pointer-events-none"></div>
+<div class="absolute bottom-[-10%] left-[-5%] w-[400px] h-[400px] bg-secondary-container/20 rounded-full blur-[100px] pointer-events-none"></div>
+<div class="w-full max-w-[480px] bg-surface-container-lowest rounded-[24px] shadow-[0_32px_64px_-12px_rgba(11,28,48,0.06)] p-8 md:p-12 relative z-10">
+<!-- Branding/Identity -->
+<div class="text-center mb-10">
+<h1 class="font-headline-md text-headline-md text-on-surface mb-2">Welcome Back</h1>
+<p class="font-body-md text-body-md text-secondary">Access your personalized restorative care dashboard.</p>
+</div>
+<!-- Tab Toggle -->
+<div class="flex border-b border-outline-variant mb-8">
+<button class="flex-1 py-4 font-label-md text-label-md active-tab transition-all" id="tab-signin" onclick="toggleForm('signin')">Sign In</button>
+<button class="flex-1 py-4 font-label-md text-label-md text-secondary hover:text-primary transition-all" id="tab-register" onclick="toggleForm('register')">Create Account</button>
+</div>
+<!-- Sign In Form -->
+<form class="space-y-6" id="form-signin">
+<div class="space-y-2">
+<label class="font-label-sm text-label-sm text-on-surface-variant block ml-1">Medical ID or Email</label>
+<input class="w-full px-5 py-4 bg-surface rounded-2xl border-none ring-1 ring-outline-variant focus:ring-2 focus:ring-primary-container transition-all outline-none text-on-surface" placeholder="name@genestac.com" type="email"/>
+</div>
+<div class="space-y-2">
+<div class="flex justify-between items-center px-1">
+<label class="font-label-sm text-label-sm text-on-surface-variant block">Password</label>
+<a class="font-label-sm text-label-sm text-primary hover:underline transition-colors" href="#">Forgot Password</a>
+</div>
+<input class="w-full px-5 py-4 bg-surface rounded-2xl border-none ring-1 ring-outline-variant focus:ring-2 focus:ring-primary-container transition-all outline-none text-on-surface" placeholder="••••••••" type="password"/>
+</div>
+<button class="w-full bg-primary-container text-white py-4 px-6 rounded-2xl font-label-md text-label-md hover:bg-primary transition-all active:scale-[0.98] shadow-lg shadow-primary-container/20" type="submit">Sign In</button>
+</form>
+<!-- Register Form -->
+<form class="space-y-6 hidden-form" id="form-register">
+<div class="space-y-2">
+<label class="font-label-sm text-label-sm text-on-surface-variant block ml-1">Full Name</label>
+<input class="w-full px-5 py-4 bg-surface rounded-2xl border-none ring-1 ring-outline-variant focus:ring-2 focus:ring-primary-container transition-all outline-none text-on-surface" placeholder="Dr. Julian Reed" type="text"/>
+</div>
+<div class="space-y-2">
+<label class="font-label-sm text-label-sm text-on-surface-variant block ml-1">Email Address</label>
+<input class="w-full px-5 py-4 bg-surface rounded-2xl border-none ring-1 ring-outline-variant focus:ring-2 focus:ring-primary-container transition-all outline-none text-on-surface" placeholder="name@domain.com" type="email"/>
+</div>
+<div class="space-y-2">
+<label class="font-label-sm text-label-sm text-on-surface-variant block ml-1">Phone Number</label>
+<input class="w-full px-5 py-4 bg-surface rounded-2xl border-none ring-1 ring-outline-variant focus:ring-2 focus:ring-primary-container transition-all outline-none text-on-surface" placeholder="+1 (555) 000-0000" type="tel"/>
+</div>
+<div class="space-y-2">
+<label class="font-label-sm text-label-sm text-on-surface-variant block ml-1">Password</label>
+<input class="w-full px-5 py-4 bg-surface rounded-2xl border-none ring-1 ring-outline-variant focus:ring-2 focus:ring-primary-container transition-all outline-none text-on-surface" placeholder="Create a strong password" type="password"/>
+</div>
+<button class="w-full bg-primary-container text-white py-4 px-6 rounded-2xl font-label-md text-label-md hover:bg-primary transition-all active:scale-[0.98] shadow-lg shadow-primary-container/20" type="submit">Register Account</button>
+</form>
+<!-- Social Auth -->
+<div class="mt-10">
+<div class="relative flex items-center mb-8">
+<div class="flex-grow border-t border-outline-variant"></div>
+<span class="flex-shrink mx-4 font-label-sm text-label-sm text-secondary px-2">Or sign in with</span>
+<div class="flex-grow border-t border-outline-variant"></div>
+</div>
+<div class="flex gap-4">
+<button class="flex-1 flex items-center justify-center gap-3 py-3 border border-outline-variant rounded-2xl hover:bg-surface transition-colors">
+<svg class="w-5 h-5" viewbox="0 0 24 24">
+<path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"></path>
+<path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"></path>
+<path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05"></path>
+<path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"></path>
+</svg>
+<span class="font-label-md text-label-md text-on-surface">Google</span>
+</button>
+<button class="flex-1 flex items-center justify-center gap-3 py-3 border border-outline-variant rounded-2xl hover:bg-surface transition-colors">
+<svg class="w-5 h-5" fill="currentColor" viewbox="0 0 24 24">
+<path d="M17.05 20.28c-.96.95-2.11 1.72-3.41 1.72-1.32 0-1.74-.82-3.32-.82-1.58 0-2.06.82-3.32.82-1.29 0-2.45-.77-3.41-1.72-1.93-1.93-3.42-5.46-3.42-8.62 0-3.16 2.05-4.83 3.97-4.83 1.05 0 2.04.72 2.68.72.64 0 1.66-.72 2.76-.72 1.04 0 2.21.5 3.03 1.25-.7.86-1.18 2.22-1.18 3.5 0 1.28.48 2.64 1.18 3.5-.47.62-1.07 1.25-1.58 1.72zm-2.87-16.73c0-1.28.48-2.64 1.18-3.5 1.04 0 2.21.5 3.03 1.25-.7.86-1.18 2.22-1.18 3.5 0 1.28.48 2.64 1.18 3.5-1.05 0-2.04-.72-2.68-.72-1.03 0-2.05.72-2.68.72-.65 0-1.67-.72-2.77-.72C11.91 3.55 13.08 4.05 13.9 4.8c.7-.86 1.18-2.22 1.18-3.5 0-1.28-.48-2.64-1.18-3.5.7.86 1.18 2.22 1.18 3.5 0 1.28-.48 2.64-1.18 3.5z"></path>
+</svg>
+<span class="font-label-md text-label-md text-on-surface">Apple</span>
+</button>
+</div>
+</div>
+<!-- Footer Small Policy Links -->
+<p class="text-center mt-8 font-label-sm text-label-sm text-secondary">
+                By accessing this portal, you agree to our <br/>
+<a class="text-primary hover:underline" href="#">Care Standards</a> and <a class="text-primary hover:underline" href="#">Patient Data Policy</a>.
+            </p>
+</div>
+</main>
+<!-- Footer -->
+<footer class="w-full bottom-0 bg-surface-container-lowest dark:bg-surface-dim border-t border-outline-variant dark:border-outline">
+<div class="flex flex-col md:flex-row justify-between items-center gap-4 px-margin-mobile md:px-margin-desktop py-8 w-full max-w-container-max mx-auto">
+<div class="flex flex-col items-center md:items-start gap-1">
+<span class="font-label-md text-label-md font-bold text-on-surface dark:text-on-surface-variant">Genestac Therapeutics</span>
+<span class="font-label-sm text-label-sm text-secondary dark:text-secondary-fixed-dim">© 2024 Genestac Therapeutics. All rights reserved.</span>
+</div>
+<div class="flex flex-wrap justify-center gap-6">
+<a class="font-label-sm text-label-sm text-secondary dark:text-secondary-fixed-dim hover:text-primary dark:hover:text-primary-fixed-dim transition-colors" href="#">Forgot Password</a>
+<a class="font-label-sm text-label-sm text-secondary dark:text-secondary-fixed-dim hover:text-primary dark:hover:text-primary-fixed-dim transition-colors" href="#">Privacy Policy</a>
+<a class="font-label-sm text-label-sm text-secondary dark:text-secondary-fixed-dim hover:text-primary dark:hover:text-primary-fixed-dim transition-colors" href="#">Terms of Service</a>
+<a class="font-label-sm text-label-sm text-secondary dark:text-secondary-fixed-dim hover:text-primary dark:hover:text-primary-fixed-dim transition-colors" href="#">Support</a>
+</div>
+</div>
+</footer>
+<script>
+        function toggleForm(type) {
+            const signInForm = document.getElementById('form-signin');
+            const registerForm = document.getElementById('form-register');
+            const tabSignIn = document.getElementById('tab-signin');
+            const tabRegister = document.getElementById('tab-register');
+            
+            if (type === 'signin') {
+                signInForm.classList.remove('hidden-form');
+                registerForm.classList.add('hidden-form');
+                
+                tabSignIn.classList.add('active-tab');
+                tabSignIn.classList.remove('text-secondary');
+                
+                tabRegister.classList.remove('active-tab');
+                tabRegister.classList.add('text-secondary');
+            } else {
+                signInForm.classList.add('hidden-form');
+                registerForm.classList.remove('hidden-form');
+                
+                tabRegister.classList.add('active-tab');
+                tabRegister.classList.remove('text-secondary');
+                
+                tabSignIn.classList.remove('active-tab');
+                tabSignIn.classList.add('text-secondary');
+            }
+        }
+
+        // Add some subtle parallax or hover interactions via JS
+        document.addEventListener('mousemove', (e) => {
+            const mouseX = e.clientX / window.innerWidth;
+            const mouseY = e.clientY / window.innerHeight;
+            
+            const card = document.querySelector('main > div:nth-child(3)');
+            if(card) {
+                const moveX = (mouseX - 0.5) * 10;
+                const moveY = (mouseY - 0.5) * 10;
+                card.style.transform = `translate(${moveX}px, ${moveY}px)`;
+            }
+        });
+    </script>
+</body></html>

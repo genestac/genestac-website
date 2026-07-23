@@ -1,0 +1,265 @@
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400;1,600&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Inter:wght@300;400;500;600;700;800&display=swap');
+
+@import "tailwindcss";
+@plugin "@tailwindcss/typography/src/index.js";
+@theme inline {
+  /* Fonts */
+  --font-sans: var(--font-outfit-local), "Outfit", "Inter", "Plus Jakarta Sans", sans-serif;
+  --font-serif: "Playfair Display", serif;
+  --font-outfit: var(--font-outfit-local), "Outfit", sans-serif;
+
+  /* Brand Colors */
+  --color-brand-50: #f0f9ff;
+  --color-brand-100: #e0f2fe;
+  --color-brand-200: #bae6fd;
+  --color-brand-300: #7dd3fc;
+  --color-brand-400: #38bdf8;
+  --color-brand-500: #0ea5e9;
+  --color-brand-600: #0284c7;
+  --color-brand-700: #0369a1;
+  --color-brand-800: #075985;
+  --color-brand-900: #0c4a6e;
+  --color-brand-950: #082f49;
+  --color-brand-dark: #0f172a;
+  --color-brand-primary: #2563eb;
+  --color-brand-primaryLight: #bfdbfe;
+  --color-brand-text: #475569;
+  --color-brand-muted: #8f9ba8;
+
+  /* Navy */
+  --color-navy-800: #0f172a;
+  --color-navy-900: #0a0f1d;
+
+  /* Teal */
+  --color-teal-400: #2dd4bf;
+  --color-teal-500: #14b8a6;
+  --color-teal-600: #0d9488;
+  --color-teal-800: #115e59;
+  --color-teal-900: #042f2e;
+  --color-teal-950: #0a1f1d;
+
+  /* Lime */
+  --color-lime-400: #a3e635;
+  --color-lime-500: #84cc16;
+
+  /* Medical */
+  --color-medical-emerald: #10b981;
+  --color-medical-emerald_dark: #059669;
+
+  /* Shadows */
+  --shadow-soft: 0 10px 40px -10px rgba(12, 74, 110, 0.08);
+  --shadow-floating: 0 20px 50px -15px rgba(12, 74, 110, 0.12);
+  --shadow-glow: 0 0 24px rgba(37, 99, 235, 0.25);
+  --shadow-glow-hover: 0 12px 36px rgba(37, 99, 235, 0.4);
+  --shadow-glass: 0 8px 32px 0 rgba(31, 38, 135, 0.05);
+  --shadow-luxury: 0 20px 40px -15px rgba(12, 74, 110, 0.4);
+  --shadow-ultra-soft: 0 4px 20px -2px rgba(15, 23, 42, 0.03);
+  --shadow-premium: 0 10px 40px -10px rgba(15, 23, 42, 0.06);
+
+  /* Animations */
+  --animate-reveal-up: revealUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  --animate-float: float 6s ease-in-out infinite;
+  --animate-pulse-slow: pulseSlow 4s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  --animate-scroll-marquee: scroll-marquee 30s linear infinite;
+  --animate-fade-in: fadeIn 0.3s ease-out forwards;
+  --animate-squeeze: squeezeInOut 2s ease-in-out infinite;
+}
+
+/* ===== Keyframes ===== */
+@keyframes revealUp {
+  0% { opacity: 0; transform: translateY(20px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-15px); }
+}
+
+@keyframes pulseSlow {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+@keyframes scroll-marquee {
+  0% { transform: translate3d(0%, 0, 0); }
+  100% { transform: translate3d(-100%, 0, 0); }
+}
+
+@keyframes fadeIn {
+  0% { opacity: 0; transform: scale(0.98); }
+  100% { opacity: 1; transform: scale(1); }
+}
+
+@keyframes squeezeInOut {
+  0%, 100% { transform: scale(1, 1); }
+  50% { transform: scale(1.05, 0.95); }
+}
+
+@keyframes smoothPan {
+  0% { transform: scale(1) translate3d(0, 0, 0); }
+  100% { transform: scale(1.05) translate3d(-1.5%, -1.5%, 0); }
+}
+
+@keyframes floatParticle {
+  0% { transform: translate3d(0, 0, 0) rotate(0deg); opacity: 0.3; }
+  50% { opacity: 0.6; }
+  100% { transform: translate3d(20vw, -100vh, 0) rotate(360deg); opacity: 0.3; }
+}
+
+/* ===== Selection ===== */
+::selection { background-color: #0ea5e9; color: #ffffff; }
+
+/* ===== Body ===== */
+body {
+  font-family: var(--font-outfit-local), "Outfit", "Inter", system-ui, sans-serif;
+  background-color: #fafcff;
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ===== Medical Background ===== */
+.medical-image-bg {
+  position: fixed; top: -5%; left: -5%; width: 110%; height: 110%;
+  background-image: url('https://genestacai.genestac.com/wp-content/uploads/2026/04/abstract-medical-concept-with-molecule-pattern-background-free-vector.jpg');
+  background-size: cover; background-position: center; background-repeat: no-repeat;
+  z-index: -5; opacity: 1; animation: smoothPan 30s linear infinite alternate;
+  will-change: transform; transform-style: preserve-3d; backface-visibility: hidden;
+}
+.bg-softener {
+  position: fixed; inset: 0; z-index: -4;
+  background: linear-gradient(135deg, rgba(255,255,255,0.92) 0%, rgba(240,249,255,0.96) 100%);
+}
+
+/* ===== Particles ===== */
+.particles-container { position: fixed; inset: 0; z-index: -3; pointer-events: none; overflow: hidden; }
+.particle {
+  position: absolute; background: radial-gradient(circle, rgba(14,165,233,0.3) 0%, transparent 70%);
+  border-radius: 50%; animation: floatParticle 15s infinite linear;
+}
+.p1 { width: 150px; height: 150px; top: 20%; left: 10%; animation-duration: 25s; }
+.p2 { width: 250px; height: 250px; top: 60%; right: 15%; animation-duration: 30s; animation-direction: reverse; }
+.p3 { width: 100px; height: 100px; bottom: 10%; left: 30%; animation-duration: 20s; }
+
+/* ===== Acrylic / Glass ===== */
+.acrylic-panel { background: rgba(255, 255, 255, 0.90); backdrop-filter: blur(16px); }
+.acrylic-card {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(255, 255, 255, 0.8) 100%);
+  backdrop-filter: blur(8px); border: 1px solid rgba(255, 255, 255, 1);
+  box-shadow: 0 10px 40px -10px rgba(12, 74, 110, 0.05), inset 0 0 0 1px rgba(255, 255, 255, 0.8);
+  transition: all 0.4s ease;
+  border: 1px solid blue
+}
+.acrylic-card:hover { transform: translateY(-5px); box-shadow: 0 20px 50px -15px rgba(12, 74, 110, 0.12); }
+.soft-blue-card {
+  background: linear-gradient(135deg, #0c4a6e 0%, #082f49 100%);
+  backdrop-filter: blur(8px); border: 1px solid rgba(255, 255, 255, 0.05);
+  box-shadow: 0 20px 50px -10px rgba(12, 74, 110, 0.3);
+}
+
+/* ===== Pro Image Bezel ===== */
+.pro-image-bezel {
+  position: relative; border-radius: 2.5rem; padding: 8px; background: rgba(255,255,255,0.8);
+  box-shadow: 0 30px 60px -15px rgba(12, 74, 110, 0.15); border: 1px solid rgba(255,255,255,0.8);
+}
+.pro-image-bezel img { border-radius: 2.1rem; box-shadow: inset 0 0 0 1px rgba(0,0,0,0.1); }
+
+/* ===== Scrollbar ===== */
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+.menu-open { overflow-y: scroll; overflow-x: hidden; }
+
+/* ===== Privacy TOC ===== */
+.active-toc {
+  color: #0ea5e9;
+  font-weight: 800;
+  border-left-color: #0ea5e9;
+}
+
+/* ===== Premium Form CSS ===== */
+.floating-label-group { position: relative; width: 100%; }
+.floating-input {
+  width: 100%; padding: 1.5rem 1rem 0.5rem; background-color: #f8fafc;
+  border: 2px solid #e2e8f0; border-radius: 0.75rem; outline: none; font-weight: 600; transition: all 0.3s ease;
+}
+.floating-input:focus { border-color: #10b981; background-color: #ffffff; box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.1); }
+.floating-label {
+  position: absolute; left: 1rem; top: 50%; transform: translateY(-50%); color: #94a3b8;
+  font-size: 0.875rem; font-weight: 500; pointer-events: none; transition: all 0.3s ease;
+}
+.floating-input:focus ~ .floating-label, .floating-input:not(:placeholder-shown) ~ .floating-label {
+  top: 0.5rem; transform: translateY(0); font-size: 0.65rem; font-weight: 700; color: #10b981; text-transform: uppercase;
+}
+select.floating-input { appearance: none; padding-top: 1.5rem; padding-bottom: 0.5rem; }
+.goal-checkbox:checked + div {
+  border-color: #10b981;
+  background-color: #ecfdf5;
+}
+.goal-checkbox:checked + div .check-circle {
+  background-color: #10b981;
+  border-color: #10b981;
+  color: white;
+}
+
+/* ===== Login Form Styles ===== */
+.login-box {
+  background: #ffffff; width: 100%; max-width: 390px; padding: 40px; border-radius: 16px;
+  box-shadow: 0 20px 60px rgba(12, 74, 110, 0.08); border: 1px solid #e2e8f0;
+}
+.login-box h2 { color: #0c4a6e; margin-bottom: 5px; font-size: 24px; font-weight: 600; }
+.login-box .sub { font-size: 13px; color: #64748b; margin-bottom: 25px; }
+.login-box .input-group { margin-bottom: 18px; }
+.login-box .input-group input,
+.login-box .input-group textarea,
+.login-box .input-group select {
+  width: 100%; padding: 14px; border: 1px solid #e2e8f0; border-radius: 10px; font-size: 14px; transition: 0.3s; background: #f9fbff; color: #334155;
+}
+.login-box .input-group input:focus,
+.login-box .input-group textarea:focus,
+.login-box .input-group select:focus {
+  border-color: #0ea5e9; box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.1); outline: none; background: #fff;
+}
+.login-box .login-btn {
+  width: 100%; padding: 14px; background: linear-gradient(90deg, #0ea5e9, #0284c7); color: #fff; border: none; border-radius: 10px; font-size: 15px; font-weight: 500; cursor: pointer; transition: 0.3s;
+}
+.login-box .login-btn:hover { transform: translateY(-2px); box-shadow: 0 10px 25px rgba(14, 165, 233, 0.2); }
+.login-box .divider { text-align: center; margin: 22px 0; font-size: 12px; color: #94a3b8; }
+.login-box .social-btn {
+  width: 100%; padding: 12px; border: 1px solid #e2e8f0; border-radius: 10px; background: #fff; margin-bottom: 10px; cursor: pointer; transition: 0.3s; font-size: 14px; color: #334155; font-weight: 500;
+}
+.login-box .social-btn:hover { background: #f0f9ff; }
+.login-box .extra { text-align: center; font-size: 13px; margin-top: 15px; }
+.login-box .extra a { color: #0ea5e9; text-decoration: none; font-weight: 600; }
+
+/* ===== Button Shine ===== */
+.btn-shine { position: relative; overflow: hidden; }
+.btn-shine::after {
+  content: ''; position: absolute; top: -50%; left: -50%; width: 200%; height: 200%;
+  background: linear-gradient(45deg, transparent 0%, transparent 40%, rgba(255, 255, 255, 0.2) 50%, transparent 60%, transparent 100%);
+  transform: rotate(45deg); transition: 0.7s;
+}
+.btn-shine:hover::after { left: 100%; }
+
+/* ===== Text Gradient ===== */
+.text-gradient {
+  background-clip: text; -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  background-image: linear-gradient(135deg, #2563eb 0%, #3b82f6 50%, #60a5fa 100%);
+}
+
+/* ===== Glass Badge ===== */
+.glass-badge {
+  background: rgba(255, 255, 255, 0.85); backdrop-filter: blur(20px); border: 1px solid rgba(255, 255, 255, 0.9);
+}
+
+/* ===== Glow Effect ===== */
+.glow-effect {
+  position: absolute; width: 600px; height: 600px;
+  background: radial-gradient(circle, rgba(45,212,191,0.15) 0%, rgba(0,0,0,0) 70%);
+  border-radius: 50%; z-index: -1; pointer-events: none;
+}
+
+
+::-webkit-scrollbar{
+  width: 3px;
+}
