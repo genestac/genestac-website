@@ -43,9 +43,10 @@ export default function RootLayout({
   return (
     <html lang="en" className="scroll-smooth">
       <head>
+        {/* Google tag (gtag.js) - GA4 + Google Ads */}
         <Script
           strategy="afterInteractive"
-          src="https://www.googletagmanager.com/gtag/js?id=G-MYX5BV4JM4"
+          src="https://www.googletagmanager.com/gtag/js?id=AW-17365825050"
         />
         <Script
           id="google-analytics"
@@ -56,6 +57,7 @@ export default function RootLayout({
               function gtag(){dataLayer.push(arguments);}
               gtag('js', new Date());
               gtag('config', 'G-MYX5BV4JM4');
+              gtag('config', 'AW-17365825050');
             `,
           }}
         />
