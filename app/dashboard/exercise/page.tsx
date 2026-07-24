@@ -49,7 +49,7 @@ export default function ExercisePlanPage() {
           .from("user_plans")
           .select("exercise_plan")
           .eq("user_id", session.user.id)
-          .single();
+          .maybeSingle();
 
         if (error) throw error;
         setExercisePlan(data?.exercise_plan || {});
