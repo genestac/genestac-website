@@ -62,7 +62,7 @@ export default function DietPlanPage() {
           .from("user_plans")
           .select("diet_plan")
           .eq("user_id", session.user.id)
-          .single();
+          .maybeSingle();
 
         if (error) throw error;
         setDietPlan(data?.diet_plan || {});
