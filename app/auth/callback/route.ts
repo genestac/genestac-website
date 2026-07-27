@@ -7,8 +7,9 @@ export async function GET(request: NextRequest) {
   const { searchParams, origin } = new URL(request.url);
   const code = searchParams.get('code');
   const next = searchParams.get('next') ?? '/weightloss#pricing';
-  // Detect if the request came from the mobile app
   const isMobile = searchParams.get('mobile') === 'true';
+  // The live exp:// URL from the mobile app (e.g. exp://192.168.1.31:8082/--/auth/callback)
+  const expoRedirect = searchParams.get('expo_redirect');
 
   if (code) {
     const cookieStore = await cookies();
@@ -31,13 +32,11 @@ export async function GET(request: NextRequest) {
     );
 
     const { data, error } = await supabase.auth.exchangeCodeForSession(code);
-    console.log('[Auth Callback] exchangeCodeForSession:', { hasData: !!data?.user, error, isMobile });
 
     if (!error && data.user && data.session) {
       const user = data.user;
 
-      // Upsert the user into the public.users table
-      const { error: upsertError } = await supabase.from('users').upsert(
+      await supabase.from('users').upsert(
         {
           id: user.id,
           name: user.user_metadata?.full_name ?? user.email?.split('@')[0] ?? '',
@@ -49,46 +48,30 @@ export async function GET(request: NextRequest) {
         { onConflict: 'id', ignoreDuplicates: true }
       );
 
-      console.log('[Auth Callback] upsert error:', upsertError);
-
-      // ── MOBILE: redirect back to Expo Go with session tokens in hash ───────
-      if (isMobile) {
-        // We redirect back to this same HTTPS page but with tokens as a hash
-        // fragment. The mobile app's WebBrowser.openAuthSessionAsync watches for
-        // any URL starting with `origin/auth/callback` (our expoRedirectUrl) and
-        // will intercept this redirect, close the browser, and return the URL
-        // (including the hash with tokens) back to the app for parsing.
-        const mobileCallbackBase = `${origin}/auth/callback?mobile=true`;
+      // ── MOBILE: redirect to the exp:// deep-link with tokens in hash ───────
+      // Android Chrome Custom Tab hands this off to Expo Go, which closes the
+      // browser and fires the openAuthSessionAsync success handler in the app.
+      if (isMobile && expoRedirect) {
         const hash = [
           `access_token=${data.session.access_token}`,
           `refresh_token=${data.session.refresh_token}`,
           `token_type=bearer`,
           `type=signin`,
         ].join('&');
-        return NextResponse.redirect(`${mobileCallbackBase}#${hash}`);
+        return NextResponse.redirect(`${expoRedirect}#${hash}`);
       }
 
       // ── WEB: check role and redirect to the correct page ──────────────────
-      const { data: profile, error: profileErr } = await supabase
+      const { data: profile } = await supabase
         .from('profiles')
         .select('role')
         .eq('id', user.id)
         .single();
 
-      console.log('[Auth Callback] profile check:', { profile, profileErr });
-
-      const redirectPath =
-        profile?.role === 'superadmin' ? '/superadmin' : next;
-
-      console.log('[Auth Callback] redirecting to:', redirectPath);
+      const redirectPath = profile?.role === 'superadmin' ? '/superadmin' : next;
       return NextResponse.redirect(`${origin}${redirectPath}`);
-    } else {
-      console.error('[Auth Callback] Error exchanging code:', error);
     }
-  } else {
-    console.warn('[Auth Callback] No code provided in URL');
   }
 
-  // Return to login with error flag if something went wrong
   return NextResponse.redirect(`${origin}/login?error=oauth_failed`);
 }
