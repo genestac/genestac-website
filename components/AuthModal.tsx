@@ -65,7 +65,12 @@ export default function AuthModal({ isOpen, onClose, onSuccess }: AuthModalProps
   const handleGoogleSignIn = async () => {
     setLoading(true);
     try {
-      await supabase.auth.signInWithOAuth({ provider: "google" });
+      await supabase.auth.signInWithOAuth({ 
+        provider: "google",
+        options: {
+          redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(window.location.pathname)}`
+        }
+      });
       // The page will redirect, after redirect the cart page checks for guest items
       const stored = localStorage.getItem("guest_cart_item");
       if (stored) {

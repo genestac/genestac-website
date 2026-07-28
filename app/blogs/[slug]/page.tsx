@@ -5,6 +5,7 @@ import Link from "next/link";
 import { format } from "date-fns";
 import { supabase } from "@/lib/supabase";
 import { BlogLayoutRenderer } from "@/components/blogs/BlogLayoutRenderer";
+import BlogContentGate from "@/components/blogs/BlogContentGate";
 import { TableOfContents } from "@/components/blogs/TableOfContents";
 import { Blog } from "@/types/blog";
 import AppointmentButton from "@/components/AppointmentButton";
@@ -224,45 +225,47 @@ export default async function BlogPostPage({ params }: Props) {
               >
                 {/* Triple-layer top accent */}
                 <div className="h-1.5 w-full bg-gradient-to-r from-brand-500 via-teal-400 to-brand-600" />
-                <div className="px-8 sm:px-14 lg:px-20 pt-12 pb-10">
-                  <BlogLayoutRenderer layout={blog.content_layout} />
-                </div>
+                <BlogContentGate>
+                  <div className="px-8 sm:px-14 lg:px-20 pt-12 pb-10">
+                    <BlogLayoutRenderer layout={blog.content_layout} />
+                  </div>
 
-                {/* FAQs Section */}
-                {blog.faqs && blog.faqs.length > 0 && (
-                  <div className="px-8 sm:px-14 lg:px-20 pb-12">
-                    <div className="border-t border-slate-100 pt-10">
-                      <h3 className="text-2xl md:text-3xl font-bold text-navy-900 mb-8">
-                        Frequently Asked Questions
-                      </h3>
-                      <div className="space-y-4">
-                        {blog.faqs.map((faq: { question: string; answer: string }, idx: number) => (
-                          <details key={idx} className="group bg-slate-50 rounded-2xl border border-slate-200/60 shadow-sm [&_summary::-webkit-details-marker]:hidden">
-                            <summary className="flex items-start justify-between cursor-pointer p-6 md:p-8 outline-none focus:ring-2 focus:ring-brand-500/50 rounded-2xl select-none">
-                              <h4 className="text-lg md:text-xl font-bold text-navy-900 flex items-start gap-3">
-                                <span className="text-brand-500 shrink-0">Q{idx + 1}.</span>
-                                {faq.question}
-                              </h4>
-                              <span className="ml-4 shrink-0 transition-transform duration-300 group-open:-rotate-180 mt-1">
-                                <svg className="w-5 h-5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                                </svg>
-                              </span>
-                            </summary>
-                            <div className="px-6 md:px-8 pb-6 md:pb-8 pt-0">
-                              <div className="border-t border-slate-200/80 pt-6">
-                                <p className="text-slate-600 leading-relaxed md:text-lg flex items-start gap-3">
-                                  <span className="text-slate-400 font-bold shrink-0 opacity-50">A.</span>
-                                  {faq.answer}
-                                </p>
+                  {/* FAQs Section */}
+                  {blog.faqs && blog.faqs.length > 0 && (
+                    <div className="px-8 sm:px-14 lg:px-20 pb-12">
+                      <div className="border-t border-slate-100 pt-10">
+                        <h3 className="text-2xl md:text-3xl font-bold text-navy-900 mb-8">
+                          Frequently Asked Questions
+                        </h3>
+                        <div className="space-y-4">
+                          {blog.faqs.map((faq: { question: string; answer: string }, idx: number) => (
+                            <details key={idx} className="group bg-slate-50 rounded-2xl border border-slate-200/60 shadow-sm [&_summary::-webkit-details-marker]:hidden">
+                              <summary className="flex items-start justify-between cursor-pointer p-6 md:p-8 outline-none focus:ring-2 focus:ring-brand-500/50 rounded-2xl select-none">
+                                <h4 className="text-lg md:text-xl font-bold text-navy-900 flex items-start gap-3">
+                                  <span className="text-brand-500 shrink-0">Q{idx + 1}.</span>
+                                  {faq.question}
+                                </h4>
+                                <span className="ml-4 shrink-0 transition-transform duration-300 group-open:-rotate-180 mt-1">
+                                  <svg className="w-5 h-5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                  </svg>
+                                </span>
+                              </summary>
+                              <div className="px-6 md:px-8 pb-6 md:pb-8 pt-0">
+                                <div className="border-t border-slate-200/80 pt-6">
+                                  <p className="text-slate-600 leading-relaxed md:text-lg flex items-start gap-3">
+                                    <span className="text-slate-400 font-bold shrink-0 opacity-50">A.</span>
+                                    {faq.answer}
+                                  </p>
+                                </div>
                               </div>
-                            </div>
-                          </details>
-                        ))}
+                            </details>
+                          ))}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                )}
+                  )}
+                </BlogContentGate>
 
                 {/* Bottom share bar */}
                 <div className="px-8 sm:px-14 lg:px-20 py-7 border-t border-slate-100 bg-gradient-to-r from-slate-50 to-brand-50/30 flex flex-col sm:flex-row items-center justify-between gap-4">
