@@ -15,6 +15,8 @@ export const Header: React.FC = () => {
   const [redirecting, setRedirecting] = useState(false);
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
   const dropdownTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const [bannerOpen, setBannerOpen] = useState(false);
+  const bannerTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 10);
@@ -496,6 +498,64 @@ export const Header: React.FC = () => {
           flex-direction: column;
           gap: 10px;
         }
+
+        /* Marquee Banner */
+        .marquee-container {
+          position: relative;
+          width: 100%;
+          background: linear-gradient(90deg, #047857 0%, #10b981 40%, #059669 70%, #047857 100%);
+          background-size: 200% 100%;
+          animation: shimmerBg 4s ease infinite;
+          color: white;
+          z-index: 101;
+        }
+
+        @keyframes shimmerBg {
+          0% { background-position: 0% 0; }
+          50% { background-position: 100% 0; }
+          100% { background-position: 0% 0; }
+        }
+
+        .marquee-bar {
+          overflow: hidden;
+          padding: 10px 0;
+          font-size: 14px;
+          font-weight: 700;
+          letter-spacing: 0.4px;
+          white-space: nowrap;
+          cursor: pointer;
+          text-align: center;
+        }
+        
+        .marquee-content {
+          display: inline-block;
+          padding-left: 100%;
+          animation: marquee 30s linear infinite;
+        }
+
+        .marquee-bar:hover .marquee-content {
+          animation-play-state: paused;
+        }
+        
+        @keyframes marquee {
+          0% { transform: translateX(0); }
+          100% { transform: translateX(-100%); }
+        }
+
+        /* Mega Banner */
+        .mega-banner-wrapper {
+          position: absolute;
+          top: 100%;
+          left: 0;
+          width: 100vw;
+          z-index: 200;
+          box-shadow: 0 20px 60px rgba(0,0,0,0.22);
+        }
+
+        @keyframes sparkleAnim {
+          0%, 100% { opacity: 0.5; transform: scale(0.8) rotate(0deg); }
+          50% { opacity: 1; transform: scale(1.3) rotate(30deg); }
+        }
       `}</style>
 
       {/* Accent bar */}
@@ -654,6 +714,223 @@ export const Header: React.FC = () => {
               </button>
             </div>
           </div>
+        </div>
+
+        {/* Promotional Marquee Banner */}
+        <div
+          className="marquee-container"
+          onMouseEnter={() => {
+            if (bannerTimerRef.current) clearTimeout(bannerTimerRef.current);
+            setBannerOpen(true);
+          }}
+          onMouseLeave={() => {
+            bannerTimerRef.current = setTimeout(() => setBannerOpen(false), 180);
+          }}
+          onClick={() => setBannerOpen(true)}
+        >
+          <div className="marquee-bar">
+            <div className="marquee-content" style={{ display: "inline-flex", alignItems: "center" }}>
+              🎉&nbsp; Launch Celebration — <strong>100% OFF</strong> for our first 100 clients! &nbsp;▸&nbsp; Doctor-Guided Programs &nbsp;▸&nbsp; Personalized Treatment &nbsp;▸&nbsp; Real, Sustainable Results &nbsp;▸&nbsp; Only 100 spots available! Hover to learn more &nbsp; 🎉
+              <span style={{ marginLeft: "15px", backgroundColor: "white", color: "#059669", padding: "2px 12px", borderRadius: "12px", fontSize: "11px", fontWeight: 800, textTransform: "uppercase", cursor: "pointer", boxShadow: "0 2px 4px rgba(0,0,0,0.15)" }}>View</span>
+            </div>
+          </div>
+
+          {/* Mega Promo Panel */}
+          {bannerOpen && (
+            <div className="mega-banner-wrapper">
+
+              {/* ── MAIN PANEL ── */}
+              <div style={{ background: "#edf1f7", borderBottom: "1px solid #e2e8f0" }}>
+              <div style={{ display: "flex", maxWidth: 1280, margin: "0 auto", overflow: "hidden", position: "relative", minHeight: 200 }}>
+
+                {/* ── LEFT: Offer Content ── */}
+                <div style={{ flex: 1, padding: "20px 48px 20px 52px", display: "flex", flexDirection: "column", justifyContent: "center", position: "relative", zIndex: 5 }}>
+
+                  {/* Launch label */}
+                  <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
+                    <span style={{ fontSize: 16 }}>🎉</span>
+                    <span style={{ color: "#b45309", fontWeight: 800, fontSize: 10, textTransform: "uppercase", letterSpacing: "0.18em", fontFamily: "Montserrat, sans-serif" }}>LAUNCH CELEBRATION</span>
+                  </div>
+
+                  {/* Heading */}
+                  <h2 style={{ fontSize: 44, fontWeight: 900, color: "#001f3f", lineHeight: 0.95, margin: "0 0 8px", fontFamily: "Montserrat, sans-serif", letterSpacing: "-1px" }}>100% OFF</h2>
+
+                  {/* Green banner */}
+                  <div style={{ display: "inline-flex", alignItems: "center", gap: 4, background: "#059669", color: "white", padding: "5px 14px", marginBottom: 10, fontWeight: 900, fontSize: 12, textTransform: "uppercase", letterSpacing: "0.04em", alignSelf: "flex-start", borderRadius: 3 }}>
+                    FOR THE FIRST&nbsp;<span style={{ color: "#fcd34d" }}>100</span>&nbsp;CLIENTS!
+                  </div>
+
+                  {/* Description */}
+                  <p style={{ color: "#4b5563", fontSize: 12, lineHeight: 1.5, marginBottom: 12, maxWidth: 420 }}>
+                    We&apos;re celebrating our launch with an exclusive <strong style={{ color: "#059669" }}>100% OFF</strong> on all services for the first 100 clients only!
+                  </p>
+
+                  {/* 3 Features in a row */}
+                  <div style={{ display: "flex", gap: 20, marginBottom: 14 }}>
+                    {[
+                      { icon: "fa-user-doctor", label: "Doctor-Guided\nProgram" },
+                      { icon: "fa-leaf",        label: "Personalized\nTreatment" },
+                      { icon: "fa-heart-pulse", label: "Real,\nSustainable Results" },
+                    ].map(f => (
+                      <div key={f.label} style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                        <div style={{ width: 28, height: 28, borderRadius: "50%", background: "#d1fae5", border: "2px solid #6ee7b7", display: "flex", alignItems: "center", justifyContent: "center", color: "#059669", fontSize: 12, flexShrink: 0 }}>
+                          <i className={`fa-solid ${f.icon}`}></i>
+                        </div>
+                        <span style={{ fontSize: 11.5, fontWeight: 600, color: "#1f2937", whiteSpace: "pre-line", lineHeight: 1.3 }}>{f.label}</span>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* CTA row */}
+                  <div style={{ display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
+                    <Link
+                      href="/login?redirect=%2Fdashboard%2Fcart%3Fcoupon%3DWELCOME100"
+                      style={{ display: "inline-flex", alignItems: "center", gap: 8, background: "#059669", color: "white", padding: "10px 20px", borderRadius: 7, fontWeight: 800, fontSize: 12, textDecoration: "none", boxShadow: "0 4px 14px rgba(5,150,105,0.5)", letterSpacing: "0.06em", textTransform: "uppercase" }}
+                    >
+                      CLAIM YOUR FREE OFFER NOW <ArrowRight size={14} />
+                    </Link>
+
+                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <div style={{ width: 32, height: 32, borderRadius: "50%", background: "#e5e7eb", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                        <i className="fa-solid fa-users" style={{ color: "#374151", fontSize: 13 }}></i>
+                      </div>
+                      <div style={{ fontSize: 12, lineHeight: 1.4, color: "#374151" }}>
+                        <strong>Hurry!</strong> Only <strong style={{ color: "#059669" }}>100</strong> spots available
+                      </div>
+                    </div>
+                  </div>
+
+                  <p style={{ color: "#9ca3af", fontSize: 10, marginTop: 8 }}>Offer valid for the first 100 clients only. Terms &amp; conditions apply.</p>
+                </div>
+
+                {/* ── RIGHT: Dark oval section ── */}
+                <div style={{ width: 380, minWidth: 380, position: "relative", display: "flex", alignItems: "flex-end", justifyContent: "flex-end" }}>
+
+                  {/* Large dark navy oval — extends left to create convex curve */}
+                  <div style={{
+                    position: "absolute",
+                    width: 600,
+                    height: 600,
+                    borderRadius: "50%",
+                    background: "#0a2540",
+                    top: "50%",
+                    left: "-220px",
+                    transform: "translateY(-50%)",
+                    zIndex: 1,
+                  }} />
+
+                  {/* Gold confetti sparkles */}
+                  {[
+                    { top: "8%",  left: "22%", size: 14, delay: "0s"   },
+                    { top: "18%", left: "55%", size: 10, delay: "0.4s" },
+                    { top: "60%", left: "18%", size: 12, delay: "0.8s" },
+                    { top: "75%", left: "50%", size: 8,  delay: "0.2s" },
+                    { top: "35%", left: "65%", size: 10, delay: "1s"   },
+                  ].map((s, i) => (
+                    <span key={i} style={{
+                      position: "absolute", top: s.top, left: s.left,
+                      zIndex: 4, color: "#f6c90e", fontSize: s.size,
+                      animation: `sparkleAnim 2.5s ${s.delay} ease-in-out infinite`,
+                      pointerEvents: "none",
+                    }}>✦</span>
+                  ))}
+
+                  {/* ── Badge circle ── */}
+                  <div style={{
+                    position: "absolute",
+                    width: 110,
+                    height: 110,
+                    borderRadius: "50%",
+                    background: "#0c2d55",
+                    border: "5px solid #d4af37",
+                    boxShadow: "0 0 0 3px #8B6914, 0 8px 24px rgba(0,0,0,0.5)",
+                    top: "10%",
+                    left: "14%",
+                    zIndex: 5,
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    textAlign: "center",
+                    color: "white",
+                    gap: 1,
+                    padding: 8,
+                  }}>
+                    <i className="fa-solid fa-gift" style={{ fontSize: 16, color: "#fbbf24", marginBottom: 1 }}></i>
+                    <span style={{ fontSize: 17, fontWeight: 900, lineHeight: 1, fontFamily: "Montserrat, sans-serif" }}>100% OFF</span>
+                    <span style={{ fontSize: 7.5, fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.06em" }}>FOR THE FIRST</span>
+
+                    {/* Gold ribbon */}
+                    <div style={{
+                      position: "absolute",
+                      bottom: -12,
+                      left: "50%",
+                      transform: "translateX(-50%)",
+                      background: "linear-gradient(135deg, #92400e, #fcd34d, #b45309)",
+                      color: "#001f3f",
+                      fontWeight: 900,
+                      fontSize: 9,
+                      padding: "3px 12px",
+                      borderRadius: 3,
+                      whiteSpace: "nowrap",
+                      boxShadow: "0 3px 8px rgba(0,0,0,0.4)",
+                      border: "1px solid #fcd34d",
+                    }}>
+                      100 CLIENTS!
+                    </div>
+                  </div>
+
+                  {/* Your Health Our Commitment box */}
+                  <div style={{
+                    position: "absolute",
+                    top: "62%",
+                    left: "8%",
+                    border: "1.5px solid #10b981",
+                    borderRadius: 7,
+                    padding: "6px 14px",
+                    color: "white",
+                    textAlign: "center",
+                    fontSize: 10.5,
+                    fontWeight: 700,
+                    zIndex: 5,
+                    background: "rgba(16,185,129,0.08)",
+                    lineHeight: 1.4,
+                  }}>
+                    Your Health<br />Our Commitment
+                    <div style={{ marginTop: 4, color: "#34d399", fontSize: 12 }}>
+                      <i className="fa-solid fa-heart-pulse"></i>
+                    </div>
+                  </div>
+
+                  {/* Girl image */}
+                  <img
+                    src="/images/cropped-girl.png"
+                    alt="Transform your health at Genestac Therapeutics"
+                    style={{ position: "relative", zIndex: 6, height: 300, width: "auto", objectFit: "contain", filter: "drop-shadow(0 4px 12px rgba(0,0,0,0.4))" }}
+                  />
+                </div>
+              </div>
+              </div>
+
+              {/* ── BOTTOM TRUST BAR ── */}
+              <div style={{ background: "#001f3f", padding: "13px 0" }}>
+                <div style={{ maxWidth: 1280, margin: "0 auto", display: "flex", justifyContent: "center", gap: 48, padding: "0 52px", flexWrap: "wrap" }}>
+                  {[
+                    { icon: "fa-shield-halved", label: "Safe & Clinically Proven" },
+                    { icon: "fa-user-doctor",   label: "Expert Doctors & Support" },
+                    { icon: "fa-leaf",           label: "Personalized Nutrition" },
+                    { icon: "fa-chart-line",     label: "Visible Results, Sustainable Change" },
+                  ].map(item => (
+                    <div key={item.label} style={{ display: "flex", alignItems: "center", gap: 10, color: "#e2e8f0", fontSize: 13.5, fontWeight: 600 }}>
+                      <i className={`fa-solid ${item.icon}`} style={{ color: "#34d399", fontSize: 20 }}></i>
+                      {item.label}
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+            </div>
+          )}
         </div>
       </header>
 

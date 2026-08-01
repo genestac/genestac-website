@@ -2,9 +2,9 @@ import Link from "next/link";
 import AppointmentButton from "@/components/AppointmentButton";
 
 export const metadata = {
-  title: "CD45RA T Cell Therapy | Genestac Therapeutics",
+  title: "CD45RA Marker Profiling & Naïve T Cell Enrichment Therapy",
   description:
-    "Explore CD45RA T Cell therapy at Genestac Therapeutics. Naïve T cells, Tregs, and precision enrichment for CAR-T and immunotherapy applications.",
+    "Discover how the CD45RA marker unlocks advanced immunotherapy. Learn about naïve T cell enrichment for CAR-T and immune reset therapies at Genestac.",
 };
 
 export default function CD45RATherapyPage() {
@@ -44,7 +44,8 @@ export default function CD45RATherapyPage() {
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid gap-12 lg:grid-cols-2 items-center">
             <div className="space-y-6">
-              <div className="inline-block rounded-full bg-emerald-50 px-4 py-1 text-xs font-bold uppercase tracking-wider text-emerald-700">What is CD45RA?</div>
+              <div className="inline-block rounded-full bg-emerald-50 px-4 py-1 text-xs font-bold uppercase tracking-wider text-emerald-700">Introduction</div>
+              <h2 className="text-3xl sm:text-4xl font-extrabold text-slate-900 font-montserrat mt-2">What is CD45RA?</h2>
               <p className="text-base sm:text-lg leading-8 text-slate-600">
                 CD45RA is an isoform of the CD45 glycoprotein, a critical T cell marker widely expressed on naïve T lymphocytes. These CD45RA+ T cells are essential for initiating fresh immune responses. In immunophenotyping and flow cytometry, the presence of CD45RA helps classify immune cells into naïve, memory, and regulatory subsets, making it vital for both research and therapy.
               </p>
@@ -88,7 +89,7 @@ export default function CD45RATherapyPage() {
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12 space-y-3">
             <span className="text-xs font-bold uppercase tracking-wider text-blue-600">Comparison</span>
-            <h2 className="text-3xl sm:text-4xl font-extrabold text-slate-900 font-montserrat">Difference Between CD45RA+ and CD45RO+</h2>
+            <h2 className="text-3xl sm:text-4xl font-extrabold text-slate-900 font-montserrat">CD45RA vs CD45RO: What is the Difference?</h2>
           </div>
           <div className="overflow-x-auto rounded-[2rem] border border-slate-100 shadow-xl bg-white">
             <table className="min-w-full divide-y divide-slate-100 text-sm sm:text-base text-left">
@@ -179,7 +180,7 @@ export default function CD45RATherapyPage() {
             {[
               { question: "Why is CD45RA important in immunotherapy?", answer: "CD45RA distinguishes naïve T cells from memory cells. Naïve CD45RA+ T cells have high proliferative potential and can be engineered into CAR-T cells with superior long-term persistence, making them an ideal starting population for adoptive cell therapies." },
               { question: "Can CD45RA+ cells be used in autoimmune diseases?", answer: "Yes. Naïve CD45RA+ Tregs are increasingly used in immune tolerance protocols for conditions like Type 1 Diabetes and inflammatory bowel disease. Their robust suppressive function after activation provides durable disease control without generalized immunosuppression." },
-              { question: "What is the difference between CD45RA and CD45RO?", answer: "CD45RA is expressed on naïve, antigen-inexperienced T cells and naïve Tregs. CD45RO is expressed on activated or memory T cells that have already encountered an antigen. Together they allow immunophenotyping of the immune system's experience status." },
+              { question: "CD45RA vs CD45RO: What is the difference?", answer: "CD45RA is expressed on naïve, antigen-inexperienced T cells and naïve Tregs. CD45RO is expressed on activated or memory T cells that have already encountered an antigen. Together they allow immunophenotyping of the immune system's experience status." },
               { question: "How does Genestac use CD45RA+ enrichment?", answer: "We use FACS and MACS cell sorting to isolate high-purity CD45RA+ T cell populations from donor blood under GMP-certified conditions, supporting both research and direct clinical therapy manufacturing pipelines." }
             ].map((faq, idx) => (
               <details key={idx} className="group rounded-2xl border border-slate-100 bg-slate-50 p-6 [&_summary::-webkit-details-marker]:hidden hover:bg-slate-100/50 transition-all">

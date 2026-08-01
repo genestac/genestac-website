@@ -57,8 +57,11 @@ export default function CD138PlasmaCellTherapyPage() {
             {/* Left: Content */}
             <div className="space-y-6">
               <div className="inline-block rounded-full bg-emerald-50 px-4 py-1 text-xs font-bold uppercase tracking-wider text-emerald-700">
-                What is CD138?
+                Introduction
               </div>
+              <h2 className="text-3xl sm:text-4xl font-extrabold text-slate-900 font-montserrat mt-2">
+                What is CD138?
+              </h2>
               <p className="text-base sm:text-lg leading-8 text-slate-600">
                 CD138, also known as Syndecan-1, is a transmembrane heparan sulfate proteoglycan and a key surface marker of plasma cells. These CD138+ plasma cells represent the final stage of B cell differentiation and are responsible for producing antibodies. They are widely studied in immunology, hematology, and oncology for their crucial role in adaptive immunity and conditions such as multiple myeloma and other plasma cell disorders.
               </p>
@@ -195,7 +198,7 @@ export default function CD138PlasmaCellTherapyPage() {
           <div className="text-center mb-16 space-y-3">
             <span className="text-xs font-bold uppercase tracking-wider text-emerald-600">Services Overview</span>
             <h2 className="text-3xl sm:text-4xl font-extrabold text-slate-900 font-montserrat">
-              Genestac's CD138+ Cell Enrichment Services
+              CD138+ Plasma Cell Isolation & Enrichment
             </h2>
             <p className="text-sm text-slate-500 max-w-2xl mx-auto">
               At <strong>Genestac Therapeutics</strong>, we provide GMP-grade isolation and purification of CD138+ plasma cells using advanced MACS and FACS technologies.
@@ -243,6 +246,14 @@ export default function CD138PlasmaCellTherapyPage() {
           </div>
           <div className="space-y-4">
             {[
+              {
+                question: "What is CD138?",
+                answer: "CD138, also known as Syndecan-1, is a transmembrane heparan sulfate proteoglycan and a key surface marker of plasma cells. It is widely studied in immunology, hematology, and oncology for its crucial role in adaptive immunity."
+              },
+              {
+                question: "What is CD 138 used for?",
+                answer: "CD 138 is primarily used for identifying and isolating mature plasma cells in both research and clinical diagnostics. It is crucial for studying antibody-secreting cells and diagnosing plasma cell disorders."
+              },
               {
                 question: "Is CD138 only found in plasma cells?",
                 answer: "While CD138 (Syndecan-1) is a primary marker for mature plasma cells, it is also expressed on epithelial cells, embryonic tissue, and some other cell types during specific developmental stages. However, in hematopoietic cells, it is highly restricted to plasma cells."
