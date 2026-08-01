@@ -27,9 +27,9 @@ const outfit = localFont({
 });
 
 export const metadata: Metadata = {
-  title: "Genestac Therapeutics | Regenerative Medicine & Pain Management",
+  title: "Advanced Stem Cell Therapy in Gurugram | Non-Surgical Relief",
   description:
-    "World-class non-surgical pain management, regenerative medicine, stem cell therapy, PRP, and advanced weight loss programs at Genestac Therapeutics, Gurugram.",
+    "Experience world-class non-surgical stem cell therapy and regenerative medicine at Genestac Therapeutics, Gurugram. Overcome chronic pain and heal naturally.",
   icons: {
     icon: "/favicon.ico",
   },

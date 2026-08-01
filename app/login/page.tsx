@@ -41,7 +41,13 @@ const Page = () => {
         if (!profileErr && profile?.role === "superadmin") {
           router.push("/superadmin");
         } else {
-          router.push("/weightloss?scrollTo=pricing");
+          const params = new URLSearchParams(window.location.search);
+          const redirectUrl = params.get("redirect");
+          if (redirectUrl) {
+            router.push(redirectUrl);
+          } else {
+            router.push("/weightloss?scrollTo=pricing");
+          }
         }
       }
     };
@@ -108,7 +114,13 @@ const Page = () => {
         if (!profileErr && profile?.role === "superadmin") {
           router.push("/superadmin");
         } else {
-          router.push("/weightloss#pricing");
+          const params = new URLSearchParams(window.location.search);
+          const redirectUrl = params.get("redirect");
+          if (redirectUrl) {
+            router.push(redirectUrl);
+          } else {
+            router.push("/weightloss#pricing");
+          }
         }
       }
     } else {

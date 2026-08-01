@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Check, Trash2 } from "lucide-react";
 
 export interface CouponInputProps {
@@ -15,6 +15,16 @@ export default function CouponInput({ selectedPlanId, selectedVariantId, onDisco
   const [message, setMessage] = useState("");
   const [isSuccess, setIsSuccess] = useState(false);
   const [appliedCode, setAppliedCode] = useState("");
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      const couponParam = params.get("coupon");
+      if (couponParam) {
+        setCode(couponParam.toUpperCase());
+      }
+    }
+  }, []);
 
   const handleApply = async () => {
     if (!code) return;
