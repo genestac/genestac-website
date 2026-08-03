@@ -29,7 +29,8 @@ export async function POST(request: Request) {
       items           // array of { item_type, item_name, quantity, unit_price, total_price }
     } = data;
 
-    if (!userId || !grandTotal || !items || !Array.isArray(items) || items.length === 0) {
+    if (!userId || grandTotal == null || !items || !Array.isArray(items) || items.length === 0) {
+      console.error("Missing required order details. Received data:", JSON.stringify(data));
       return NextResponse.json(
         { success: false, message: "Missing required order details (userId, grandTotal, items)" },
         { status: 400 },
