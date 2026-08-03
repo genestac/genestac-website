@@ -93,6 +93,10 @@ export default function RazorpayCheckout({
   const handleCheckout = async () => {
     if (loading) return;
 
+    console.log("[Checkout] userId at click time:", userId);
+    console.log("[Checkout] amount (paise):", amount, "grandTotal (rupees):", amount / 100);
+    console.log("[Checkout] planName:", planName, "shippingAddressId:", shippingAddressId);
+
     // ✅ Guard: make sure we have a user before even opening the modal
     if (!userId) {
       toast.error("You must be logged in to make a payment.");
@@ -123,10 +127,7 @@ export default function RazorpayCheckout({
             100,
         ) / 100);
 
-      const res = await fetch("/api/checkout", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
+      const payload = {
           userId,
           originalAmount: calculatedOriginal,
           discountAmount: calculatedDiscount,
@@ -142,12 +143,27 @@ export default function RazorpayCheckout({
               total_price: calculatedOriginal,
             },
           ],
-        }),
+        };
+      console.log("[Checkout] Sending payload to /api/checkout:", JSON.stringify(payload));
+
+      const res = await fetch("/api/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
       });
       const data = await res.json();
 
       if (!res.ok || !data.success) {
         throw new Error(data.message || data.error || "Failed to create order");
+      }
+
+      // Handle free orders (100% coupon discount) — no Razorpay required
+      if (data.freeOrder) {
+        toast.success("Order placed successfully! (100% discount applied)");
+        clearCart();
+        router.push("/dashboard/order/success");
+        setLoading(false);
+        return;
       }
 
       const keyId = data.keyId || process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID;

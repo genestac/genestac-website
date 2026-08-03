@@ -55,8 +55,9 @@ export async function POST(request: Request) {
 
     if (orderError || !order) {
       console.error("Error creating order:", orderError);
+      const errMsg = orderError?.message || orderError?.details || orderError?.hint || "Unknown error";
       return NextResponse.json(
-        { success: false, message: "Failed to create order record: " + (orderError?.message || "Unknown error") },
+        { success: false, message: "DB Error (orders insert): " + errMsg, detail: orderError },
         { status: 500 }
       );
     }
@@ -99,15 +100,43 @@ export async function POST(request: Request) {
 
     if (itemsError) {
       console.error("Error creating order items:", itemsError);
-      // Attempt clean up of order if items fail
       await supabaseAdmin.from("orders").delete().eq("id", order.id);
       return NextResponse.json(
-        { success: false, message: "Failed to create order items: " + itemsError.message },
+        { success: false, message: "DB Error (order_items insert): " + itemsError.message, detail: itemsError },
         { status: 500 }
       );
     }
 
-    // Step 3: Initialize Razorpay Payment
+    // Step 3: Handle free orders (100% discount) — Razorpay cannot process ₹0
+    if (grandTotal <= 0) {
+      // Mark order as paid directly without Razorpay
+      await supabaseAdmin
+        .from("orders")
+        .update({ status: "confirmed", payment_status: "paid" })
+        .eq("id", order.id);
+
+      // Record a free payment entry
+      await supabaseAdmin.from("payments").insert({
+        order_id: order.id,
+        user_id: userId,
+        provider: "free",
+        provider_order_id: `free_${order.id}`,
+        amount: 0,
+        status: "paid",
+      });
+
+      return NextResponse.json({
+        success: true,
+        freeOrder: true,
+        dbOrderId: order.id,
+        orderId: null,
+        amount: 0,
+        currency: "INR",
+        keyId,
+      });
+    }
+
+    // Step 3b: Initialize Razorpay Payment (paid orders)
     const razorpay = new Razorpay({
       key_id: keyId,
       key_secret: keySecret,
@@ -148,7 +177,7 @@ export async function POST(request: Request) {
   } catch (error: any) {
     console.error("Error in checkout API route:", error);
     return NextResponse.json(
-      { success: false, error: error.message || "Internal Server Error" },
+      { success: false, message: error.message || "Internal Server Error", error: error.message || "Internal Server Error" },
       { status: 500 },
     );
   }
