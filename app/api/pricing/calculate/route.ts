@@ -50,7 +50,8 @@ export async function POST(request: Request) {
 
       if (variant) {
         const isDiscountActive =
-          variant.discounted_price &&
+          variant.discounted_price !== null &&
+          variant.discounted_price !== undefined &&
           (!variant.discount_end_date || new Date(variant.discount_end_date) > new Date());
         basePrice = isDiscountActive
           ? Number(variant.discounted_price)
