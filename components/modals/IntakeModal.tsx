@@ -95,10 +95,10 @@ export const IntakeModal: React.FC = () => {
     setAuthLoading(true);
 
     const errs: Record<string, boolean> = {};
-    const trimmedName = authData.fullName.trim();
-    const trimmedEmail = authData.email.trim();
-    const trimmedPhone = authData.phone.trim();
-    const password = authData.password;
+    const trimmedName = authData.fullName.trim().replace(/\s+/g, " ");
+    const trimmedEmail = authData.email.replace(/\s+/g, "").toLowerCase();
+    const trimmedPhone = authData.phone.replace(/\D/g, "");
+    const password = authData.password.trim();
 
     if (!trimmedEmail) errs.email = true;
     if (!password) errs.password = true;

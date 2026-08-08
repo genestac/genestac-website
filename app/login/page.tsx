@@ -124,9 +124,10 @@ const Page = () => {
         }
       }
     } else {
-      const trimmedName = name.trim();
-      const trimmedEmail = email.trim();
-      const trimmedPhoneNumber = phoneNumber.trim();
+      const trimmedName = name.trim().replace(/\s+/g, " ");
+      const trimmedEmail = email.replace(/\s+/g, "").toLowerCase();
+      const trimmedPhoneNumber = phoneNumber.replace(/\D/g, "");
+      const trimmedPassword = password.trim();
 
       try {
         const res = await fetch("/api/auth/register", {
@@ -136,7 +137,7 @@ const Page = () => {
             name: trimmedName,
             email: trimmedEmail,
             phone: trimmedPhoneNumber,
-            password: password,
+            password: trimmedPassword,
           }),
         });
 
@@ -155,7 +156,7 @@ const Page = () => {
         const authUserId = regData.userId;
         setOtpUserId(authUserId);
         setOtpEmail(trimmedEmail);
-        setOtpPassword(password);
+        setOtpPassword(trimmedPassword);
         setShowOtpModal(true);
         setMessage("");
       } catch (err: any) {

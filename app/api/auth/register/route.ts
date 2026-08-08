@@ -13,16 +13,53 @@ export async function POST(request: Request) {
     const body = await request.json();
     const { name, email, phone, password } = body;
 
-    if (!name || !email || !phone || !password) {
+    // 1. Sanitize & Clean inputs
+    const rawEmail = (email || "").toString();
+    const rawPhone = (phone || "").toString();
+    const rawName = (name || "").toString();
+    const rawPassword = (password || "").toString();
+
+    // Remove ALL whitespace from email (leading, trailing, and internal accidental spaces)
+    const cleanEmail = rawEmail.replace(/\s+/g, "").toLowerCase();
+
+    // Remove ALL non-digit characters from phone number
+    const cleanPhone = rawPhone.replace(/\D/g, "");
+
+    // Trim name and collapse multiple spaces between words into a single space
+    const cleanName = rawName.trim().replace(/\s+/g, " ");
+
+    // Trim password
+    const cleanPassword = rawPassword.trim();
+
+    // 2. Field Validation Checks
+    if (!cleanName) {
       return NextResponse.json(
-        { error: "Name, email, phone, and password are required." },
+        { error: "Please enter a valid full name." },
         { status: 400 }
       );
     }
 
-    const cleanEmail = email.trim().toLowerCase();
-    const cleanPhone = phone.replace(/\D/g, "");
-    const cleanName = name.trim();
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!cleanEmail || !emailRegex.test(cleanEmail)) {
+      return NextResponse.json(
+        { error: "Please enter a valid email address (e.g. user@example.com)." },
+        { status: 400 }
+      );
+    }
+
+    if (!cleanPhone || cleanPhone.length < 10) {
+      return NextResponse.json(
+        { error: "Please enter a valid 10-digit phone number." },
+        { status: 400 }
+      );
+    }
+
+    if (!cleanPassword || cleanPassword.length < 6) {
+      return NextResponse.json(
+        { error: "Password must be at least 6 characters long." },
+        { status: 400 }
+      );
+    }
 
     const admin = createClient(supabaseUrl, supabaseServiceKey);
 
@@ -46,7 +83,7 @@ export async function POST(request: Request) {
     try {
       const { data: authData } = await admin.auth.admin.createUser({
         email: cleanEmail,
-        password: password,
+        password: cleanPassword,
         email_confirm: true,
         user_metadata: { full_name: cleanName, phone: cleanPhone }
       });

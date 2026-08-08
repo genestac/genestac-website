@@ -36,7 +36,12 @@ export default function AuthModal({ isOpen, onClose, onSuccess }: AuthModalProps
     e.preventDefault();
     setMessage("");
 
-    if (!email || !password || (mode === "signUp" && (!name || !phoneNumber))) {
+    const cleanEmail = email.replace(/\s+/g, "").toLowerCase();
+    const cleanPhone = phoneNumber.replace(/\D/g, "");
+    const cleanName = name.trim().replace(/\s+/g, " ");
+    const cleanPassword = password.trim();
+
+    if (!cleanEmail || !cleanPassword || (mode === "signUp" && (!cleanName || !cleanPhone))) {
       setMessage("Please fill all required fields.");
       return;
     }
@@ -45,7 +50,7 @@ export default function AuthModal({ isOpen, onClose, onSuccess }: AuthModalProps
 
     try {
       if (mode === "signIn") {
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
+        const { error } = await supabase.auth.signInWithPassword({ email: cleanEmail, password: cleanPassword });
         if (error) { setMessage(error.message); return; }
         toast.success("Signed in successfully");
         onSuccess();
@@ -54,10 +59,10 @@ export default function AuthModal({ isOpen, onClose, onSuccess }: AuthModalProps
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            name,
-            email,
-            phone: phoneNumber,
-            password,
+            name: cleanName,
+            email: cleanEmail,
+            phone: cleanPhone,
+            password: cleanPassword,
           }),
         });
         const regData = await res.json();
