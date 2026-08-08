@@ -1,4 +1,5 @@
 import { createServerClient } from '@supabase/ssr';
+import { createClient } from '@supabase/supabase-js';
 import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
@@ -14,6 +15,7 @@ export async function GET(request: NextRequest) {
   if (code) {
     const cookieStore = await cookies();
 
+    // Anon client — used only for exchangeCodeForSession (sets session cookies)
     const supabase = createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -31,12 +33,21 @@ export async function GET(request: NextRequest) {
       }
     );
 
+    // Admin client — bypasses RLS for writing to public.users
+    const admin = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    );
+
     const { data, error } = await supabase.auth.exchangeCodeForSession(code);
 
     if (!error && data.user && data.session) {
       const user = data.user;
 
-      await supabase.from('users').upsert(
+      // Save Google OAuth user into public.users using admin client (bypasses RLS)
+      // phone defaults to empty string since Google doesn't provide it (column is NOT NULL)
+      // ignoreDuplicates: true — if user already exists, do not overwrite their data
+      const { error: upsertError } = await admin.from('users').upsert(
         {
           id: user.id,
           name: user.user_metadata?.full_name ?? user.email?.split('@')[0] ?? '',
@@ -44,9 +55,14 @@ export async function GET(request: NextRequest) {
           phone: user.phone ?? '',
           status: 'NEW',
           source: isMobile ? 'google_oauth_mobile' : 'google_oauth',
+          metadata: { role: 'customer' },
         },
         { onConflict: 'id', ignoreDuplicates: true }
       );
+
+      if (upsertError) {
+        console.error('[auth/callback] Failed to upsert user into public.users:', upsertError);
+      }
 
       // ── MOBILE: redirect to the exp:// deep-link with tokens in hash ───────
       // Android Chrome Custom Tab hands this off to Expo Go, which closes the
@@ -62,13 +78,21 @@ export async function GET(request: NextRequest) {
       }
 
       // ── WEB: check role and redirect to the correct page ──────────────────
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('id', user.id)
-        .single();
+      let redirectPath = next;
+      try {
+        const { data: staff } = await admin
+          .from('staffs')
+          .select('role_id')
+          .eq('id', user.id)
+          .maybeSingle();
 
-      const redirectPath = profile?.role === 'superadmin' ? '/superadmin' : next;
+        if (staff) {
+          redirectPath = '/superadmin';
+        }
+      } catch {
+        // Fallback to default next route
+      }
+
       return NextResponse.redirect(`${origin}${redirectPath}`);
     }
   }

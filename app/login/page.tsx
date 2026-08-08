@@ -53,10 +53,19 @@ const Page = () => {
     };
     checkSession();
 
-    // Show error if OAuth callback failed
+    // Show error if OAuth callback or Google sign-in failed
     const params = new URLSearchParams(window.location.search);
-    if (params.get("error") === "oauth_failed") {
-      setMessage("Google sign-in failed. Please try again or use email/password.");
+    const hashParams = new URLSearchParams(window.location.hash.substring(1));
+    const err = params.get("error") || hashParams.get("error");
+    const errDesc = params.get("error_description") || hashParams.get("error_description");
+
+    if (err) {
+      if (errDesc && errDesc.toLowerCase().includes("database error saving new user")) {
+        setMessage("Google Sign-In is unavailable for new Google accounts because of a Supabase trigger issue. Please create your account using Email and Password above.");
+        toast.error("Please register using Email and Password above.");
+      } else {
+        setMessage("Google sign-in failed. Please try again or use email/password.");
+      }
     }
   }, [router]);
 
