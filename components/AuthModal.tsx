@@ -50,9 +50,22 @@ export default function AuthModal({ isOpen, onClose, onSuccess }: AuthModalProps
         toast.success("Signed in successfully");
         onSuccess();
       } else {
-        const { error } = await supabase.auth.signUp({ email, password, options: { data: { full_name: name, phone: phoneNumber } } });
-        if (error) { setMessage(error.message); return; }
-        toast.success("Account created! Please check your email to confirm.");
+        const res = await fetch("/api/auth/register", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            name,
+            email,
+            phone: phoneNumber,
+            password,
+          }),
+        });
+        const regData = await res.json();
+        if (!res.ok) {
+          setMessage(regData.error || "Failed to create account.");
+          return;
+        }
+        toast.success("Account created successfully!");
         onSuccess();
       }
     } catch (err: any) {
