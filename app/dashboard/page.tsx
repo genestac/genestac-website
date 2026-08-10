@@ -37,6 +37,7 @@ import {
   Ruler,
   CheckSquare,
   Check,
+  Footprints,
 } from "lucide-react";
 import type { User as SupabaseUser } from "@supabase/supabase-js";
 
@@ -46,6 +47,11 @@ type WeightLog = {
   note?: string;
   image_url?: string;
   imageUrl?: string;
+};
+
+type StepLog = {
+  date: string;
+  steps: number;
 };
 
 
@@ -152,6 +158,16 @@ export default function DashboardPage() {
   const [loadingSleepTips, setLoadingSleepTips] = useState(false);
   const [savingSleep, setSavingSleep] = useState(false);
   const [isSleepHistoryModalOpen, setIsSleepHistoryModalOpen] = useState(false);
+
+  // Steps Tracker State
+  const [stepsToday, setStepsToday] = useState<number>(0);
+  const [savingSteps, setSavingSteps] = useState(false);
+
+  // user_plans History State Arrays
+  const [stepsLogsState, setStepsLogsState] = useState<StepLog[]>([]);
+  const [waterLogsState, setWaterLogsState] = useState<WaterLog[]>([]);
+  const [sleepLogsState, setSleepLogsState] = useState<SleepLog[]>([]);
+  const [measurementLogsState, setMeasurementLogsState] = useState<MeasurementLog[]>([]);
 
   // Manual Tracking State
   const [measurements, setMeasurements] = useState({ waist: "", hips: "", chest: "" });
@@ -263,13 +279,161 @@ export default function DashboardPage() {
     }
   };
 
+  const extractLogsArray = (data: any, keyNames: string[] = []): any[] => {
+    if (!data) return [];
+    if (typeof data === "string") {
+      try {
+        data = JSON.parse(data);
+      } catch {
+        return [];
+      }
+    }
+    if (Array.isArray(data)) return data;
+    if (typeof data === "object") {
+      for (const key of keyNames) {
+        if (Array.isArray(data[key])) return data[key];
+      }
+      if (Array.isArray(data.logs)) return data.logs;
+      if (Array.isArray(data.history)) return data.history;
+      if (Array.isArray(data.data)) return data.data;
+    }
+    return [];
+  };
+
+  const mergeLogsByDate = <T extends { date: string }>(primary: T[] = [], fallback: T[] = []): T[] => {
+    const map = new Map<string, T>();
+    const addLog = (item: T) => {
+      if (!item || !item.date) return;
+      const dateKey = typeof item.date === "string" && item.date.includes("T") ? item.date.split("T")[0] : String(item.date);
+      map.set(dateKey, item);
+    };
+
+    (fallback || []).forEach(addLog);
+    (primary || []).forEach(addLog);
+
+    return Array.from(map.values()).sort((a, b) => {
+      const timeA = new Date(a.date).getTime();
+      const timeB = new Date(b.date).getTime();
+      return timeB - timeA;
+    });
+  };
+
+  const saveUserPlanData = async (
+    userId: string,
+    updates: {
+      steps_history?: StepLog[];
+      water_history?: WaterLog[];
+      sleep_history?: SleepLog[];
+      measurement_history?: MeasurementLog[];
+    }
+  ) => {
+    const { data: existing } = await supabase
+      .from("user_plans")
+      .select("id")
+      .eq("user_id", userId)
+      .maybeSingle();
+
+    if (existing?.id) {
+      return await supabase
+        .from("user_plans")
+        .update({
+          ...updates,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", existing.id);
+    } else {
+      return await supabase
+        .from("user_plans")
+        .insert({
+          user_id: userId,
+          ...updates,
+        });
+    }
+  };
+
+  const handleLogSteps = async (amount: number) => {
+    if (!user) return;
+    setSavingSteps(true);
+
+    const todayStr = new Date().toISOString().split("T")[0];
+    let newStepsLogs = [...stepsLogsState];
+    const existingIndex = newStepsLogs.findIndex((log) => log.date && log.date.split("T")[0] === todayStr);
+
+    let newCount = amount;
+    if (existingIndex >= 0) {
+      newCount = Math.max(0, newStepsLogs[existingIndex].steps + amount);
+      newStepsLogs[existingIndex] = { date: todayStr, steps: newCount };
+    } else {
+      newCount = Math.max(0, amount);
+      newStepsLogs.push({ date: todayStr, steps: newCount });
+    }
+
+    const finishSave = () => {
+      setStepsLogsState(newStepsLogs);
+      setStepsToday(newCount);
+      setSavingSteps(false);
+      toast.success("Steps logged successfully!");
+    };
+
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get("bypassAuth") === "true") {
+      finishSave();
+      return;
+    }
+
+    const { error } = await saveUserPlanData(user.id, { steps_history: newStepsLogs });
+    if (error) {
+      console.error("Error saving steps to user_plans:", error);
+      setSavingSteps(false);
+      toast.error("Failed to save steps.");
+    } else {
+      finishSave();
+    }
+  };
+
+  const handleResetSteps = async () => {
+    if (!user) return;
+    setSavingSteps(true);
+
+    const todayStr = new Date().toISOString().split("T")[0];
+    let newStepsLogs = [...stepsLogsState];
+    const existingIndex = newStepsLogs.findIndex((log) => log.date && log.date.split("T")[0] === todayStr);
+
+    if (existingIndex >= 0) {
+      newStepsLogs[existingIndex] = { date: todayStr, steps: 0 };
+    }
+
+    const finishSave = () => {
+      setStepsLogsState(newStepsLogs);
+      setStepsToday(0);
+      setSavingSteps(false);
+      toast.success("Steps reset.");
+    };
+
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get("bypassAuth") === "true") {
+      finishSave();
+      return;
+    }
+
+    const { error } = await saveUserPlanData(user.id, { steps_history: newStepsLogs });
+    if (error) {
+      console.error("Error resetting steps in user_plans:", error);
+      setSavingSteps(false);
+      toast.error("Failed to reset steps.");
+    } else {
+      finishSave();
+    }
+  };
+
   const handleLogWater = async (amount: number) => {
     if (!user) return;
     setSavingWater(true);
     
     const todayStr = new Date().toISOString().split("T")[0];
-    let newWaterLogs = [...(journey.waterLogs || [])];
-    const existingIndex = newWaterLogs.findIndex(log => log.date === todayStr);
+    let currentLogs = mergeLogsByDate(waterLogsState, journey.waterLogs || []);
+    let newWaterLogs = [...currentLogs];
+    const existingIndex = newWaterLogs.findIndex(log => log.date && log.date.split("T")[0] === todayStr);
     
     let newAmount = amount;
     if (existingIndex >= 0) {
@@ -287,6 +451,7 @@ export default function DashboardPage() {
     };
 
     const finishSave = () => {
+      setWaterLogsState(newWaterLogs);
       setJourney(newJourney);
       setWaterToday(newAmount);
       setSavingWater(false);
@@ -299,12 +464,14 @@ export default function DashboardPage() {
       return;
     }
 
-    const { error } = await supabase
+    const { error } = await saveUserPlanData(user.id, { water_history: newWaterLogs });
+    await supabase
       .from("users")
       .update({ weight_loss_journey: cleanJourneyForDb(newJourney) })
       .eq("id", user.id);
 
     if (error) {
+      console.error("Error saving water intake to user_plans:", error);
       setSavingWater(false);
       toast.error("Failed to save water intake.");
     } else {
@@ -317,8 +484,9 @@ export default function DashboardPage() {
     setSavingWater(true);
     
     const todayStr = new Date().toISOString().split("T")[0];
-    let newWaterLogs = [...(journey.waterLogs || [])];
-    const existingIndex = newWaterLogs.findIndex(log => log.date === todayStr);
+    let currentLogs = mergeLogsByDate(waterLogsState, journey.waterLogs || []);
+    let newWaterLogs = [...currentLogs];
+    const existingIndex = newWaterLogs.findIndex(log => log.date && log.date.split("T")[0] === todayStr);
     
     if (existingIndex >= 0) {
       newWaterLogs[existingIndex] = { date: todayStr, amount: 0 };
@@ -330,6 +498,7 @@ export default function DashboardPage() {
     };
 
     const finishSave = () => {
+      setWaterLogsState(newWaterLogs);
       setJourney(newJourney);
       setWaterToday(0);
       setSavingWater(false);
@@ -342,12 +511,14 @@ export default function DashboardPage() {
       return;
     }
 
-    const { error } = await supabase
+    const { error } = await saveUserPlanData(user.id, { water_history: newWaterLogs });
+    await supabase
       .from("users")
       .update({ weight_loss_journey: cleanJourneyForDb(newJourney) })
       .eq("id", user.id);
 
     if (error) {
+      console.error("Error resetting water intake in user_plans:", error);
       setSavingWater(false);
       toast.error("Failed to reset water intake.");
     } else {
@@ -384,8 +555,9 @@ export default function DashboardPage() {
     const yesterday = new Date();
     yesterday.setDate(yesterday.getDate() - 1);
     const yesterdayStr = yesterday.toISOString().split("T")[0];
-    let newSleepLogs = [...(journey.sleepLogs || [])];
-    const existingIndex = newSleepLogs.findIndex((log) => log.date === yesterdayStr);
+    let currentLogs = mergeLogsByDate(sleepLogsState, journey.sleepLogs || []);
+    let newSleepLogs = [...currentLogs];
+    const existingIndex = newSleepLogs.findIndex((log) => log.date && log.date.split("T")[0] === yesterdayStr);
 
     if (existingIndex >= 0) {
       newSleepLogs[existingIndex] = { date: yesterdayStr, hours: sleepToday };
@@ -399,6 +571,7 @@ export default function DashboardPage() {
     };
 
     const finishSave = () => {
+      setSleepLogsState(newSleepLogs);
       setJourney(newJourney);
       setSavingSleep(false);
       toast.success("Sleep duration saved!");
@@ -411,12 +584,14 @@ export default function DashboardPage() {
       return;
     }
 
-    const { error } = await supabase
+    const { error } = await saveUserPlanData(user.id, { sleep_history: newSleepLogs });
+    await supabase
       .from("users")
       .update({ weight_loss_journey: cleanJourneyForDb(newJourney) })
       .eq("id", user.id);
 
     if (error) {
+      console.error("Error saving sleep to user_plans:", error);
       setSavingSleep(false);
       toast.error("Failed to save sleep details.");
     } else {
@@ -429,8 +604,9 @@ export default function DashboardPage() {
     setSavingMeasurements(true);
     
     const today = new Date().toISOString().split("T")[0];
-    let newMeasurements = [...(journey.measurements || [])];
-    const existingIndex = newMeasurements.findIndex((log) => log.date === today);
+    let currentLogs = mergeLogsByDate(measurementLogsState, journey.measurements || []);
+    let newMeasurements = [...currentLogs];
+    const existingIndex = newMeasurements.findIndex((log) => log.date && log.date.split("T")[0] === today);
 
     const log: MeasurementLog = {
       date: today,
@@ -448,6 +624,7 @@ export default function DashboardPage() {
     const newJourney: WeightJourney = { ...journey, measurements: newMeasurements };
 
     const finishSave = () => {
+      setMeasurementLogsState(newMeasurements);
       setJourney(newJourney);
       setSavingMeasurements(false);
       toast.success("Measurements saved!");
@@ -459,12 +636,14 @@ export default function DashboardPage() {
       return;
     }
 
-    const { error } = await supabase
+    const { error } = await saveUserPlanData(user.id, { measurement_history: newMeasurements });
+    await supabase
       .from("users")
       .update({ weight_loss_journey: cleanJourneyForDb(newJourney) })
       .eq("id", user.id);
 
     if (error) {
+      console.error("Error saving measurements to user_plans:", error);
       setSavingMeasurements(false);
       toast.error("Failed to save measurements.");
     } else {
@@ -551,69 +730,94 @@ export default function DashboardPage() {
 
       setUser(session.user);
 
+      // Fetch user_plans data (steps, water, sleep, measurements history)
+      const { data: userPlan } = await supabase
+        .from("user_plans")
+        .select("steps_history, water_history, sleep_history, measurement_history")
+        .eq("user_id", session.user.id)
+        .maybeSingle();
+
+      const userPlanSteps: StepLog[] = extractLogsArray(userPlan?.steps_history, ["stepsLogs", "steps_history"]);
+      const userPlanWater: WaterLog[] = extractLogsArray(userPlan?.water_history, ["waterLogs", "water_history"]);
+      const userPlanSleep: SleepLog[] = extractLogsArray(userPlan?.sleep_history, ["sleepLogs", "sleep_history"]);
+      const userPlanMeasurements: MeasurementLog[] = extractLogsArray(userPlan?.measurement_history, ["measurementLogs", "measurements", "measurement_history"]);
+
       const { data, error } = await supabase
         .from("users")
         .select("weight_loss_journey")
         .eq("id", session.user.id)
         .maybeSingle();
 
-      if (data && data.weight_loss_journey) {
-        const fetchedJourney = data.weight_loss_journey as WeightJourney;
-        const normalizedHistory = (Array.isArray(fetchedJourney.history) ? fetchedJourney.history : []).map(entry => ({
-          ...entry,
-          imageUrl: entry.image_url || entry.imageUrl,
-        }));
-        setJourney({
-          targetGoal: fetchedJourney.targetGoal,
-          history: normalizedHistory,
-          meals: Array.isArray(fetchedJourney.meals)
-            ? fetchedJourney.meals
-            : [],
-          waterGoal: fetchedJourney.waterGoal,
-          waterLogs: Array.isArray(fetchedJourney.waterLogs)
-            ? fetchedJourney.waterLogs
-            : [],
-          sleepLogs: Array.isArray(fetchedJourney.sleepLogs)
-            ? fetchedJourney.sleepLogs
-            : [],
-          measurements: Array.isArray(fetchedJourney.measurements)
-            ? fetchedJourney.measurements
-            : [],
-          habitLogs: Array.isArray(fetchedJourney.habitLogs)
-            ? fetchedJourney.habitLogs
-            : [],
-        });
-        if (fetchedJourney.targetGoal) {
-          setTargetGoalInput(fetchedJourney.targetGoal.toString());
-        }
+      const fetchedJourney = ((data && data.weight_loss_journey) ? data.weight_loss_journey : {}) as WeightJourney;
+      const normalizedHistory = (Array.isArray(fetchedJourney.history) ? fetchedJourney.history : []).map(entry => ({
+        ...entry,
+        imageUrl: entry.image_url || entry.imageUrl,
+      }));
 
-        const todayStr = new Date().toISOString().split("T")[0];
-        // Set today's water log
-        if (Array.isArray(fetchedJourney.waterLogs)) {
-          const todayLog = fetchedJourney.waterLogs.find(log => log.date === todayStr);
-          setWaterToday(todayLog ? todayLog.amount : 0);
-        } else {
-          setWaterToday(0);
-        }
+      const legacyWater = extractLogsArray(fetchedJourney.waterLogs, ["waterLogs"]);
+      const legacySleep = extractLogsArray(fetchedJourney.sleepLogs, ["sleepLogs"]);
+      const legacyMeasurements = extractLogsArray(fetchedJourney.measurements, ["measurements"]);
 
-        // Set yesterday's sleep log
-        const yesterday = new Date();
-        yesterday.setDate(yesterday.getDate() - 1);
-        const yesterdayStr = yesterday.toISOString().split("T")[0];
-        if (Array.isArray(fetchedJourney.sleepLogs)) {
-          const yesterdaySleepLog = fetchedJourney.sleepLogs.find(log => log.date === yesterdayStr);
-          setSleepToday(yesterdaySleepLog ? yesterdaySleepLog.hours : 7.0);
-        } else {
-          setSleepToday(7.0);
-        }
+      // Combine / merge user_plans data with users weight_loss_journey data so no history is lost
+      const finalWaterLogs = mergeLogsByDate(userPlanWater, legacyWater);
+      const finalSleepLogs = mergeLogsByDate(userPlanSleep, legacySleep);
+      const finalMeasurementLogs = mergeLogsByDate(userPlanMeasurements, legacyMeasurements);
+      const finalStepsLogs = userPlanSteps;
 
-        // Fetch AI recommendations
-        fetchRecommendations(Array.isArray(fetchedJourney.meals) ? fetchedJourney.meals : []);
-        fetchSleepRecommendations(Array.isArray(fetchedJourney.sleepLogs) ? fetchedJourney.sleepLogs : []);
-      } else {
-        fetchRecommendations([]);
-        fetchSleepRecommendations([]);
+      setStepsLogsState(finalStepsLogs);
+      setWaterLogsState(finalWaterLogs);
+      setSleepLogsState(finalSleepLogs);
+      setMeasurementLogsState(finalMeasurementLogs);
+
+      setJourney({
+        targetGoal: fetchedJourney.targetGoal,
+        history: normalizedHistory,
+        meals: Array.isArray(fetchedJourney.meals)
+          ? fetchedJourney.meals
+          : [],
+        waterGoal: fetchedJourney.waterGoal,
+        waterLogs: finalWaterLogs,
+        sleepLogs: finalSleepLogs,
+        measurements: finalMeasurementLogs,
+        habitLogs: Array.isArray(fetchedJourney.habitLogs)
+          ? fetchedJourney.habitLogs
+          : [],
+      });
+
+      if (fetchedJourney.targetGoal) {
+        setTargetGoalInput(fetchedJourney.targetGoal.toString());
       }
+
+      const todayStr = new Date().toISOString().split("T")[0];
+
+      // Set today's steps log
+      const todayStepLog = finalStepsLogs.find(log => log.date === todayStr);
+      setStepsToday(todayStepLog ? todayStepLog.steps : 0);
+
+      // Set today's water log
+      const todayWaterLog = finalWaterLogs.find(log => log.date === todayStr);
+      setWaterToday(todayWaterLog ? todayWaterLog.amount : 0);
+
+      // Set yesterday's sleep log
+      const yesterday = new Date();
+      yesterday.setDate(yesterday.getDate() - 1);
+      const yesterdayStr = yesterday.toISOString().split("T")[0];
+      const yesterdaySleepLog = finalSleepLogs.find(log => log.date === yesterdayStr);
+      setSleepToday(yesterdaySleepLog ? yesterdaySleepLog.hours : 7.0);
+
+      // Set today's measurement log if exists
+      const todayMeasurementLog = finalMeasurementLogs.find(log => log.date === todayStr);
+      if (todayMeasurementLog) {
+        setMeasurements({
+          waist: todayMeasurementLog.waist ? todayMeasurementLog.waist.toString() : "",
+          hips: todayMeasurementLog.hips ? todayMeasurementLog.hips.toString() : "",
+          chest: todayMeasurementLog.chest ? todayMeasurementLog.chest.toString() : "",
+        });
+      }
+
+      // Fetch AI recommendations
+      fetchRecommendations(Array.isArray(fetchedJourney.meals) ? fetchedJourney.meals : []);
+      fetchSleepRecommendations(finalSleepLogs);
       setLoading(false);
     };
 
@@ -1471,8 +1675,8 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          {/* Water Tracker, Sleep Tracker & AI Recommendations Grid */}
-          <div className="grid md:grid-cols-4 gap-6 mt-8">
+          {/* Water & Sleep Health Trackers Grid */}
+          <div className="grid md:grid-cols-2 gap-6 mt-8">
             {/* Water Tracker Card */}
             <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm flex flex-col justify-between min-w-0">
               <div>
@@ -1520,38 +1724,39 @@ export default function DashboardPage() {
               </div>
 
               {/* Log Buttons */}
-              <div className="flex gap-2">
+              <div className="flex flex-col gap-2">
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => handleLogWater(0.25)}
+                    disabled={savingWater}
+                    className="flex-1 py-2.5 px-3 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-xl font-bold text-xs transition border border-blue-100 flex items-center justify-center gap-1"
+                  >
+                    +0.25L
+                  </button>
+                  <button
+                    onClick={() => handleLogWater(0.5)}
+                    disabled={savingWater}
+                    className="flex-1 py-2.5 px-3 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-xl font-bold text-xs transition border border-blue-100 flex items-center justify-center gap-1"
+                  >
+                    +0.5L
+                  </button>
+                  <button
+                    onClick={() => setIsWaterHistoryModalOpen(true)}
+                    className="py-2.5 px-3 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-xl font-bold text-xs transition flex items-center justify-center"
+                    title="View History"
+                  >
+                    History
+                  </button>
+                </div>
                 <button
-                  onClick={() => handleLogWater(0.25)}
-                  disabled={savingWater}
-                  className="flex-1 py-2.5 px-3 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-xl font-bold text-xs transition border border-blue-100 flex items-center justify-center gap-1"
-                >
-                  +0.25L
-                </button>
-                <button
-                  onClick={() => handleLogWater(0.5)}
-                  disabled={savingWater}
-                  className="flex-1 py-2.5 px-3 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-xl font-bold text-xs transition border border-blue-100 flex items-center justify-center gap-1"
-                >
-                  +0.5L
-                </button>
-                <button
-                  onClick={() => setIsWaterHistoryModalOpen(true)}
-                  className="py-2.5 px-3 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-xl font-bold text-xs transition flex items-center justify-center"
-                  title="View History"
-                >
-                  History
-                </button>
-                
-              </div>
-              <button
                   onClick={handleResetWater}
                   disabled={savingWater}
-                  className="py-2.5 px-3 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl font-bold text-sm transition flex items-center justify-center"
+                  className="py-2 px-3 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl font-bold text-xs transition flex items-center justify-center"
                   title="Reset today's water"
                 >
-                  Reset
+                  Reset Today
                 </button>
+              </div>
             </div>
 
             {/* Sleep Tracker Card */}
@@ -1560,7 +1765,7 @@ export default function DashboardPage() {
                 <div className="flex justify-between items-start mb-4">
                   <h2 className="text-md font-bold text-slate-900 flex items-center gap-2">
                     <Moon className="w-5 h-5 text-indigo-500 fill-indigo-500/20" />
-                    Sleep <br />(Last Night)
+                    Sleep (Last Night)
                   </h2>
                   <span className="text-xs font-bold text-indigo-600 bg-indigo-50 px-2 py-1 rounded-full shrink-0">
                     Target: {sleepAdvice.targetHours.toFixed(1)}h
@@ -1647,8 +1852,94 @@ export default function DashboardPage() {
               </div>
             </div>
 
-            {/* AI Meal Recommendations Card */}
-            <div className="md:col-span-2 bg-white rounded-2xl border border-slate-200 p-6 shadow-sm flex flex-col justify-between min-w-0">
+            {/* Steps Tracker Card (Commented out for now) */}
+            {/* 
+            <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm flex flex-col justify-between min-w-0">
+              <div>
+                <div className="flex justify-between items-start mb-4">
+                  <h2 className="text-md font-bold text-slate-900 flex items-center gap-2">
+                    <Footprints className="w-5 h-5 text-emerald-500" />
+                    Steps Tracker
+                  </h2>
+                  <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-full shrink-0">
+                    Target: 10,000
+                  </span>
+                </div>
+
+                <div className="flex items-center gap-4 my-3">
+                  <div className="relative w-16 h-16 flex items-center justify-center shrink-0">
+                    <svg className="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
+                      <circle
+                        cx="50"
+                        cy="50"
+                        r="40"
+                        className="stroke-slate-100"
+                        strokeWidth="8"
+                        fill="transparent"
+                      />
+                      <circle
+                        cx="50"
+                        cy="50"
+                        r="40"
+                        className="stroke-emerald-500 transition-all duration-500"
+                        strokeWidth="8"
+                        fill="transparent"
+                        strokeDasharray={251.2}
+                        strokeDashoffset={251.2 - (251.2 * Math.min(stepsToday, 10000)) / 10000}
+                        strokeLinecap="round"
+                      />
+                    </svg>
+                    <div className="absolute flex flex-col items-center justify-center">
+                      <Footprints className="w-5 h-5 text-emerald-500" />
+                    </div>
+                  </div>
+
+                  <div className="flex-1 min-w-0">
+                    <p className="text-2xl font-extrabold text-slate-900 truncate">
+                      {stepsToday.toLocaleString()} <span className="text-xs font-semibold text-slate-500">steps</span>
+                    </p>
+                    <p className="text-xs text-slate-500 mt-1 truncate">
+                      {stepsToday >= 10000
+                        ? "Goal reached! 🎉"
+                        : `${(10000 - stepsToday).toLocaleString()} to goal`}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-4 flex flex-col gap-2">
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => handleLogSteps(1000)}
+                    disabled={savingSteps}
+                    className="flex-1 py-2.5 px-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-xl font-bold text-xs transition border border-emerald-100 flex items-center justify-center gap-1"
+                  >
+                    +1,000
+                  </button>
+                  <button
+                    onClick={() => handleLogSteps(2500)}
+                    disabled={savingSteps}
+                    className="flex-1 py-2.5 px-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-xl font-bold text-xs transition border border-emerald-100 flex items-center justify-center gap-1"
+                  >
+                    +2,500
+                  </button>
+                </div>
+                <button
+                  onClick={handleResetSteps}
+                  disabled={savingSteps}
+                  className="py-2 px-3 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl font-bold text-xs transition flex items-center justify-center"
+                  title="Reset today's steps"
+                >
+                  Reset Today
+                </button>
+              </div>
+            </div>
+            */}
+          </div>
+
+          {/* AI Meal Recommendations Card Section */}
+          <div className="mt-8">
+            <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm flex flex-col justify-between min-w-0">
               <div>
                 <h2 className="text-md font-bold text-slate-900 mb-4 flex items-center gap-2">
                   <Sparkles className="w-5 h-5 text-orange-500 fill-orange-500/20" />
@@ -2303,151 +2594,157 @@ export default function DashboardPage() {
       )}
 
       {/* Water History Modal */}
-      {isWaterHistoryModalOpen && (
-        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
-          <div className="bg-white rounded-3xl w-full max-w-md shadow-2xl overflow-hidden flex flex-col max-h-[80vh]">
-            <div className="bg-blue-600 px-6 py-5 flex items-center justify-between shrink-0">
-              <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                <Droplet className="w-5 h-5 text-blue-200" /> Water Intake History
-              </h3>
-              <button
-                onClick={() => setIsWaterHistoryModalOpen(false)}
-                className="text-blue-100 hover:bg-blue-500/50 p-1.5 rounded-full transition"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            
-            <div className="p-6 overflow-y-auto">
-              {journey.waterLogs && journey.waterLogs.length > 0 ? (
-                <div className="space-y-3">
-                  {[...journey.waterLogs]
-                    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-                    .map((log) => {
-                      const d = new Date(log.date);
-                      return (
-                        <div key={log.date} className="flex items-center justify-between p-4 bg-slate-50 border border-slate-100 rounded-2xl">
-                          <span className="font-semibold text-slate-700">
-                            {d.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })}
-                          </span>
-                          <span className="font-bold text-blue-600 text-lg bg-blue-100/50 px-3 py-1 rounded-full">
-                            {log.amount.toFixed(2)} L
-                          </span>
-                        </div>
-                      );
-                    })}
-                </div>
-              ) : (
-                <div className="text-center py-10">
-                  <Droplet className="w-12 h-12 text-blue-100 mx-auto mb-3" />
-                  <p className="text-slate-500 font-medium">No water history found.</p>
-                  <p className="text-xs text-slate-400 mt-1">Start logging your daily water intake!</p>
-                </div>
-              )}
+      {isWaterHistoryModalOpen && (() => {
+        const displayLogs = mergeLogsByDate(waterLogsState, journey.waterLogs || []);
+        return (
+          <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-200 mt-30">
+            <div className="bg-white rounded-3xl w-full max-w-md shadow-2xl overflow-hidden flex flex-col max-h-[80vh]">
+              <div className="bg-blue-600 px-6 py-5 flex items-center justify-between shrink-0">
+                <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                  <Droplet className="w-5 h-5 text-blue-200" /> Water Intake History
+                </h3>
+                <button
+                  onClick={() => setIsWaterHistoryModalOpen(false)}
+                  className="text-blue-100 hover:bg-blue-500/50 p-1.5 rounded-full transition"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              
+              <div className="p-6 overflow-y-auto">
+                {displayLogs && displayLogs.length > 0 ? (
+                  <div className="space-y-3">
+                    {displayLogs
+                      .map((log) => {
+                        const d = new Date(log.date);
+                        return (
+                          <div key={log.date} className="flex items-center justify-between p-4 bg-slate-50 border border-slate-100 rounded-2xl">
+                            <span className="font-semibold text-slate-700">
+                              {d.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })}
+                            </span>
+                            <span className="font-bold text-blue-600 text-lg bg-blue-100/50 px-3 py-1 rounded-full">
+                              {log.amount.toFixed(2)} L
+                            </span>
+                          </div>
+                        );
+                      })}
+                  </div>
+                ) : (
+                  <div className="text-center py-10">
+                    <Droplet className="w-12 h-12 text-blue-100 mx-auto mb-3" />
+                    <p className="text-slate-500 font-medium">No water history found.</p>
+                    <p className="text-xs text-slate-400 mt-1">Start logging your daily water intake!</p>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* Sleep History Modal */}
-      {isSleepHistoryModalOpen && (
-        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
-          <div className="bg-white rounded-3xl w-full max-w-md shadow-2xl overflow-hidden flex flex-col max-h-[80vh]">
-            <div className="bg-indigo-600 px-6 py-5 flex items-center justify-between shrink-0">
-              <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                <Moon className="w-5 h-5 text-indigo-200" /> Sleep History
-              </h3>
-              <button
-                onClick={() => setIsSleepHistoryModalOpen(false)}
-                className="text-indigo-100 hover:bg-indigo-500/50 p-1.5 rounded-full transition"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            
-            <div className="p-6 overflow-y-auto">
-              {journey.sleepLogs && journey.sleepLogs.length > 0 ? (
-                <div className="space-y-3">
-                  {[...journey.sleepLogs]
-                    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-                    .map((log) => {
-                      const d = new Date(log.date);
-                      return (
-                        <div key={log.date} className="flex items-center justify-between p-4 bg-slate-50 border border-slate-100 rounded-2xl">
-                          <span className="font-semibold text-slate-700">
-                            {d.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })}
-                          </span>
-                          <span className="font-bold text-indigo-600 text-lg bg-indigo-100/50 px-3 py-1 rounded-full">
-                            {log.hours.toFixed(1)} h
-                          </span>
-                        </div>
-                      );
-                    })}
-                </div>
-              ) : (
-                <div className="text-center py-10">
-                  <Moon className="w-12 h-12 text-indigo-100 mx-auto mb-3" />
-                  <p className="text-slate-500 font-medium">No sleep history found.</p>
-                  <p className="text-xs text-slate-400 mt-1">Start logging your daily sleep hours!</p>
-                </div>
-              )}
+      {isSleepHistoryModalOpen && (() => {
+        const displayLogs = mergeLogsByDate(sleepLogsState, journey.sleepLogs || []);
+        return (
+          <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-200 mt-30">
+            <div className="bg-white rounded-3xl w-full max-w-md shadow-2xl overflow-hidden flex flex-col max-h-[80vh]">
+              <div className="bg-indigo-600 px-6 py-5 flex items-center justify-between shrink-0">
+                <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                  <Moon className="w-5 h-5 text-indigo-200" /> Sleep History
+                </h3>
+                <button
+                  onClick={() => setIsSleepHistoryModalOpen(false)}
+                  className="text-indigo-100 hover:bg-indigo-500/50 p-1.5 rounded-full transition"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              
+              <div className="p-6 overflow-y-auto">
+                {displayLogs && displayLogs.length > 0 ? (
+                  <div className="space-y-3">
+                    {displayLogs
+                      .map((log) => {
+                        const d = new Date(log.date);
+                        return (
+                          <div key={log.date} className="flex items-center justify-between p-4 bg-slate-50 border border-slate-100 rounded-2xl">
+                            <span className="font-semibold text-slate-700">
+                              {d.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })}
+                            </span>
+                            <span className="font-bold text-indigo-600 text-lg bg-indigo-100/50 px-3 py-1 rounded-full">
+                              {log.hours.toFixed(1)} h
+                            </span>
+                          </div>
+                        );
+                      })}
+                  </div>
+                ) : (
+                  <div className="text-center py-10">
+                    <Moon className="w-12 h-12 text-indigo-100 mx-auto mb-3" />
+                    <p className="text-slate-500 font-medium">No sleep history found.</p>
+                    <p className="text-xs text-slate-400 mt-1">Start logging your daily sleep hours!</p>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* Measurements History Modal */}
-      {isMeasurementsHistoryModalOpen && (
-        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
-          <div className="bg-white rounded-3xl w-full max-w-md shadow-2xl overflow-hidden flex flex-col max-h-[80vh]">
-            <div className="bg-indigo-600 px-6 py-5 flex items-center justify-between shrink-0">
-              <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                <Ruler className="w-5 h-5 text-indigo-200" /> Measurements History
-              </h3>
-              <button
-                onClick={() => setIsMeasurementsHistoryModalOpen(false)}
-                className="text-indigo-100 hover:bg-indigo-500/50 p-1.5 rounded-full transition"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            
-            <div className="p-6 overflow-y-auto">
-              {journey.measurements && journey.measurements.length > 0 ? (
-                <div className="space-y-3">
-                  {[...journey.measurements]
-                    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-                    .map((log) => {
-                      const d = new Date(log.date);
-                      return (
-                        <div key={log.date} className="flex flex-col gap-2 p-4 bg-slate-50 border border-slate-100 rounded-2xl">
-                          <span className="font-semibold text-slate-700">
-                            {d.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })}
-                          </span>
-                          <div className="flex gap-2">
-                            {log.waist && <span className="text-xs font-bold text-indigo-600 bg-indigo-100/50 px-2 py-1 rounded-md">Waist: {log.waist}"</span>}
-                            {log.hips && <span className="text-xs font-bold text-indigo-600 bg-indigo-100/50 px-2 py-1 rounded-md">Hips: {log.hips}"</span>}
-                            {log.chest && <span className="text-xs font-bold text-indigo-600 bg-indigo-100/50 px-2 py-1 rounded-md">Chest: {log.chest}"</span>}
+      {isMeasurementsHistoryModalOpen && (() => {
+        const displayLogs = mergeLogsByDate(measurementLogsState, journey.measurements || []);
+        return (
+          <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-200 mt-30">
+            <div className="bg-white rounded-3xl w-full max-w-md shadow-2xl overflow-hidden flex flex-col max-h-[80vh]">
+              <div className="bg-indigo-600 px-6 py-5 flex items-center justify-between shrink-0">
+                <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                  <Ruler className="w-5 h-5 text-indigo-200" /> Measurements History
+                </h3>
+                <button
+                  onClick={() => setIsMeasurementsHistoryModalOpen(false)}
+                  className="text-indigo-100 hover:bg-indigo-500/50 p-1.5 rounded-full transition"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              
+              <div className="p-6 overflow-y-auto">
+                {displayLogs && displayLogs.length > 0 ? (
+                  <div className="space-y-3">
+                    {displayLogs
+                      .map((log) => {
+                        const d = new Date(log.date);
+                        return (
+                          <div key={log.date} className="flex flex-col gap-2 p-4 bg-slate-50 border border-slate-100 rounded-2xl">
+                            <span className="font-semibold text-slate-700">
+                              {d.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })}
+                            </span>
+                            <div className="flex gap-2">
+                              {log.waist && <span className="text-xs font-bold text-indigo-600 bg-indigo-100/50 px-2 py-1 rounded-md">Waist: {log.waist}"</span>}
+                              {log.hips && <span className="text-xs font-bold text-indigo-600 bg-indigo-100/50 px-2 py-1 rounded-md">Hips: {log.hips}"</span>}
+                              {log.chest && <span className="text-xs font-bold text-indigo-600 bg-indigo-100/50 px-2 py-1 rounded-md">Chest: {log.chest}"</span>}
+                            </div>
                           </div>
-                        </div>
-                      );
-                    })}
-                </div>
-              ) : (
-                <div className="text-center py-10">
-                  <Ruler className="w-12 h-12 text-indigo-100 mx-auto mb-3" />
-                  <p className="text-slate-500 font-medium">No measurements history found.</p>
-                  <p className="text-xs text-slate-400 mt-1">Start logging your body measurements!</p>
-                </div>
-              )}
+                        );
+                      })}
+                  </div>
+                ) : (
+                  <div className="text-center py-10">
+                    <Ruler className="w-12 h-12 text-indigo-100 mx-auto mb-3" />
+                    <p className="text-slate-500 font-medium">No measurements history found.</p>
+                    <p className="text-xs text-slate-400 mt-1">Start logging your body measurements!</p>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* Habits History Modal */}
       {isHabitsHistoryModalOpen && (
-        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-200 mt-30">
           <div className="bg-white rounded-3xl w-full max-w-md shadow-2xl overflow-hidden flex flex-col max-h-[80vh]">
             <div className="bg-emerald-600 px-6 py-5 flex items-center justify-between shrink-0">
               <h3 className="text-lg font-bold text-white flex items-center gap-2">
