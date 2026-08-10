@@ -210,7 +210,12 @@ export const PricingSection: React.FC = () => {
     );
   }
 
-  const entry1MVariant = entryPlan?.variants?.find((v) => v.duration_days === 30 || v.duration_label.toLowerCase().includes("1 month")) || entryPlan?.variants?.[0];
+  // Sort variants by duration_days ascending before rendering so 1-Month always comes first
+  const entry1MVariant = entryPlan?.variants
+    ?.slice()
+    .sort((a, b) => (a.duration_days ?? 0) - (b.duration_days ?? 0))
+    .find((v) => v.duration_days === 30 || v.duration_label.toLowerCase().includes("1 month"))
+    ?? entryPlan?.variants?.[0];
   const hasEntryDiscount = hasActiveDiscount(entry1MVariant);
   const entryActivePrice = entry1MVariant ? getActivePrice(entry1MVariant) : entryPlan?.cartPrice || 0;
   const entryBasePrice = entry1MVariant ? entry1MVariant.base_price : entryPlan?.cartPrice || 0;
@@ -296,8 +301,11 @@ export const PricingSection: React.FC = () => {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-stretch">
           {subscriptionPlans.map((plan) => {
             const isFeatured = plan.featured;
-            const variant1M = plan.variants?.find((v) => v.duration_days === 30 || v.duration_label.toLowerCase().includes("1 month")) || plan.variants?.[0];
-            const variant3M = plan.variants?.find((v) => v.duration_days === 90 || v.duration_label.toLowerCase().includes("3 month")) || plan.variants?.[1];
+            // Always sort variants by duration_days so 1-Month and 3-Month are matched correctly
+            const sortedVariants = [...(plan.variants ?? [])].sort((a, b) => (a.duration_days ?? 0) - (b.duration_days ?? 0));
+            const variant1M = sortedVariants.find((v) => v.duration_days === 30 || v.duration_label.toLowerCase().includes("1 month")) ?? sortedVariants[0];
+            // ⚠️ No positional fallback for 3M — only match by duration to avoid wrong-variant discount display
+            const variant3M = sortedVariants.find((v) => v.duration_days === 90 || v.duration_label.toLowerCase().includes("3 month")) ?? undefined;
 
             const has1MDiscount = hasActiveDiscount(variant1M);
             const active1MPrice = variant1M ? getActivePrice(variant1M) : plan.cartPrice;
@@ -571,7 +579,9 @@ export const PricingSection: React.FC = () => {
             {/* Variant Options */}
             <div className="grid gap-3">
               {selectedPlanForModal.variants && selectedPlanForModal.variants.length > 0 ? (
-                selectedPlanForModal.variants.map((variant) => {
+                [...selectedPlanForModal.variants]
+                  .sort((a, b) => (a.duration_days ?? 0) - (b.duration_days ?? 0))
+                  .map((variant) => {
                   const activePrice = getActivePrice(variant);
                   const hasDiscount = hasActiveDiscount(variant);
 
