@@ -71,6 +71,8 @@ export async function POST(request: Request) {
         order_id: order.id,
         item_type: item.item_type || "plan",
         item_name: item.item_name,
+        plan_id: item.plan_id || null,
+        variant_id: item.variant_id || null,
         quantity: item.quantity || 1,
         unit_price: item.unit_price,
         total_price: item.total_price
@@ -124,6 +126,47 @@ export async function POST(request: Request) {
         amount: 0,
         status: "paid",
       });
+
+      // Auto-assign subscription for free orders
+      for (const item of items) {
+        if ((item.item_type === "plan" || !item.item_type) && item.plan_id) {
+          // Check if user already has an active subscription to avoid duplicates
+          const { data: existingSub } = await supabaseAdmin
+            .from("subscriptions")
+            .select("id")
+            .eq("user_id", userId)
+            .eq("plan_id", item.plan_id)
+            .eq("status", "active")
+            .single();
+
+          if (!existingSub) {
+            // Find variant duration if variant_id provided
+            let months = 1;
+            if (item.variant_id) {
+              const { data: variant } = await supabaseAdmin
+                .from("plan_variants")
+                .select("duration_months")
+                .eq("id", item.variant_id)
+                .single();
+              if (variant && variant.duration_months) {
+                months = variant.duration_months;
+              }
+            }
+
+            const startDate = new Date();
+            const endDate = new Date();
+            endDate.setMonth(endDate.getMonth() + months);
+
+            await supabaseAdmin.from("subscriptions").insert({
+              user_id: userId,
+              plan_id: item.plan_id,
+              start_date: startDate.toISOString().split("T")[0],
+              end_date: endDate.toISOString().split("T")[0],
+              status: "active"
+            });
+          }
+        }
+      }
 
       return NextResponse.json({
         success: true,
