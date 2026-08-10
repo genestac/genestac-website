@@ -5,7 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { MobileDashNav } from "@/components/MobileDashNav";
-import { Home, ShoppingCart, ShoppingBag, MapPin, FileText, LogOut, UserRound, Apple, Activity } from "lucide-react";
+import { Home, ShoppingCart, ShoppingBag, MapPin, FileText, LogOut, UserRound, Apple, Activity, Lock, ArrowRight, CheckCircle2, BadgeCheck, Sparkles } from "lucide-react";
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -14,6 +14,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [loading, setLoading] = useState(true);
   const [cartCount, setCartCount] = useState(0);
   const [isBypassed, setIsBypassed] = useState(false);
+  const [hasActivePlan, setHasActivePlan] = useState<boolean | null>(null);
+  const [activePlanName, setActivePlanName] = useState<string | null>(null);
+  const [checkingPlan, setCheckingPlan] = useState(true);
 
   useEffect(() => {
     const bypass =
@@ -40,6 +43,85 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       setLoading(false);
     });
   }, [router]);
+
+  useEffect(() => {
+    if (!user) return;
+
+    const checkPlan = async () => {
+      if (isBypassed) {
+        setHasActivePlan(true);
+        setActivePlanName("Medical & Fitness Plan");
+        setCheckingPlan(false);
+        return;
+      }
+
+      try {
+        // 1. Check paid orders in orders table with order_items
+        const { data: paidOrders } = await supabase
+          .from("orders")
+          .select("id, order_items(item_name, item_type)")
+          .eq("user_id", user.id)
+          .eq("payment_status", "paid")
+          .order("created_at", { ascending: false })
+          .limit(1);
+
+        if (paidOrders && paidOrders.length > 0) {
+          const items = paidOrders[0].order_items || [];
+          const planItem = items.find((i: any) => i.item_type === "plan") || items[0];
+          const name = planItem?.item_name || "Active Health Plan";
+          setHasActivePlan(true);
+          setActivePlanName(name);
+          setCheckingPlan(false);
+          return;
+        }
+
+        // 2. Check successful payments in payments table
+        const { data: successfulPayments } = await supabase
+          .from("payments")
+          .select("id, orders(order_items(item_name, item_type))")
+          .eq("user_id", user.id)
+          .in("status", ["successful", "captured", "paid"])
+          .order("created_at", { ascending: false })
+          .limit(1);
+
+        if (successfulPayments && successfulPayments.length > 0) {
+          const items = (successfulPayments[0] as any)?.orders?.order_items || [];
+          const planItem = items.find((i: any) => i.item_type === "plan") || items[0];
+          const name = planItem?.item_name || "Active Health Plan";
+          setHasActivePlan(true);
+          setActivePlanName(name);
+          setCheckingPlan(false);
+          return;
+        }
+
+        // 3. Check user_plans table
+        const { data: userPlans } = await supabase
+          .from("user_plans")
+          .select("id, plan_name")
+          .eq("user_id", user.id)
+          .limit(1);
+
+        if (userPlans && userPlans.length > 0) {
+          const name = (userPlans[0] as any)?.plan_name || "Active Health Plan";
+          setHasActivePlan(true);
+          setActivePlanName(name);
+          setCheckingPlan(false);
+          return;
+        }
+
+        setHasActivePlan(false);
+        setActivePlanName(null);
+      } catch (err) {
+        console.error("Error checking active plan:", err);
+        setHasActivePlan(false);
+        setActivePlanName(null);
+      } finally {
+        setCheckingPlan(false);
+      }
+    };
+
+    checkPlan();
+  }, [user, isBypassed]);
 
   useEffect(() => {
     const fetchCartCount = async () => {
@@ -87,7 +169,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     // { label: "Invoices", icon: <FileText className="w-4 h-4" />, href: `/dashboard/invoices${qs}` },
   ];
 
-  if (loading) {
+  if (loading || checkingPlan) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-50">
         <div className="w-10 h-10 border-4 border-sky-600 border-t-transparent rounded-full animate-spin" />
@@ -95,9 +177,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     );
   }
 
+  const showLockedState = hasActivePlan === false;
+
   return (
-    <div className="flex min-h-screen bg-slate-50 pb-16 md:pb-0">
-      <aside className="w-64 shrink-0 hidden md:flex flex-col bg-slate-900 border-r border-slate-800 py-8 px-5 gap-6 text-white shadow-xl">
+    <div className="flex min-h-screen bg-slate-50 pb-16 md:pb-0 relative">
+      <aside className={`w-64 shrink-0 hidden md:flex flex-col bg-slate-900 border-r border-slate-800 py-8 px-5 gap-6 text-white shadow-xl ${showLockedState ? "pointer-events-none filter blur-sm opacity-50 select-none" : ""}`}>
         <div className="flex flex-col items-center text-center p-4 bg-slate-800/40 rounded-2xl border border-slate-800 relative overflow-hidden">
           <div className="absolute top-0 right-0 w-24 h-24 bg-blue-500/10 rounded-full blur-xl -mr-6 -mt-6" />
           <div className="w-16 h-16 rounded-full bg-linear-to-tr from-blue-600 to-indigo-600 flex items-center justify-center text-white text-xl font-bold shadow-lg ring-4 ring-slate-800">
@@ -106,6 +190,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           <p className="font-bold text-sm mt-3 text-slate-100">{displayName}</p>
           <p className="text-[11px] text-slate-400 mt-0.5 truncate w-full">{user?.email}</p>
           <p className="text-[10px] text-slate-500 mt-1 font-mono">ID: {userId}</p>
+
+          {hasActivePlan && activePlanName && (
+            <div className="mt-3 w-full bg-emerald-500/10 border border-emerald-500/30 rounded-xl py-1.5 px-3 flex items-center justify-center gap-1.5 shadow-sm">
+              <BadgeCheck className="w-4 h-4 text-emerald-400 shrink-0" />
+              <span className="text-[11px] font-bold text-emerald-300 truncate">
+                {activePlanName}
+              </span>
+            </div>
+          )}
         </div>
 
         <nav className="flex flex-col gap-1.5">
@@ -144,11 +237,65 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </button>
       </aside>
 
-      <div className="flex-1 flex flex-col min-w-0 min-h-0 overflow-hidden">
+      <div className={`flex-1 flex flex-col min-w-0 min-h-0 overflow-hidden ${showLockedState ? "pointer-events-none select-none filter blur-md opacity-40" : ""}`}>
         {children}
       </div>
 
-      <MobileDashNav />
+      {!showLockedState && <MobileDashNav />}
+
+      {/* Pop up overlay for users without an active plan */}
+      {showLockedState && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-md animate-fade-in">
+          <div className="bg-slate-900 border border-slate-800 text-white rounded-3xl p-8 max-w-md w-full text-center shadow-2xl flex flex-col items-center relative overflow-hidden ring-1 ring-white/10">
+            <div className="absolute -top-12 -right-12 w-40 h-40 bg-blue-500/20 rounded-full blur-3xl pointer-events-none" />
+            <div className="absolute -bottom-12 -left-12 w-40 h-40 bg-indigo-500/20 rounded-full blur-3xl pointer-events-none" />
+            
+            <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center shadow-lg shadow-blue-500/25 ring-4 ring-blue-500/20 mb-5">
+              <Lock className="w-8 h-8 text-white" />
+            </div>
+
+            <h2 className="text-2xl font-bold text-slate-100 mb-2 tracking-tight">
+              Plan Required
+            </h2>
+
+            <p className="text-slate-300 text-sm font-medium mb-6 leading-relaxed max-w-sm">
+              Please purchase a plan to avail dashboard features
+            </p>
+
+            <div className="w-full bg-slate-800/60 border border-slate-800 rounded-2xl p-4 mb-6 text-left space-y-2.5">
+              <div className="flex items-center gap-2.5 text-xs text-slate-300 font-medium">
+                <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                <span>Personalized Diet & Workout Plans</span>
+              </div>
+              <div className="flex items-center gap-2.5 text-xs text-slate-300 font-medium">
+                <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                <span>Daily Health Tracking & Analytics</span>
+              </div>
+              <div className="flex items-center gap-2.5 text-xs text-slate-300 font-medium">
+                <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                <span>Doctor Consultations & Progress Monitoring</span>
+              </div>
+            </div>
+
+            <Link
+              href="/pricing"
+              className="w-full py-3.5 px-6 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold text-sm rounded-xl shadow-lg shadow-blue-600/30 transition-all duration-200 hover:scale-[1.02] flex items-center justify-center gap-2"
+            >
+              <span>Purchase a Plan</span>
+              <ArrowRight className="w-4 h-4" />
+            </Link>
+
+            <button
+              onClick={handleSignOut}
+              className="mt-4 text-xs font-semibold text-slate-400 hover:text-white transition-colors"
+            >
+              Sign out
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
+
+
