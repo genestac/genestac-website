@@ -84,31 +84,39 @@ export async function POST(request: NextRequest) {
                   .from("subscriptions")
                   .select("id")
                   .eq("user_id", userId)
-                  .eq("plan_id", item.plan_id)
                   .eq("status", "active")
                   .single();
 
                 if (!existingSub) {
+                  // Fetch plan_type
+                  let planType = "weightloss";
+                  if (item.plan_id) {
+                    const { data: planData } = await supabaseAdmin.from("plans").select("type").eq("id", item.plan_id).single();
+                    if (planData && planData.type) planType = planData.type;
+                  }
+
                   // Find variant duration
-                  let months = 1;
+                  let days = 30; // default to 30 days
                   if (item.variant_id) {
                     const { data: variant } = await supabaseAdmin
                       .from("plan_variants")
-                      .select("duration_months")
+                      .select("duration_days")
                       .eq("id", item.variant_id)
                       .single();
-                    if (variant && variant.duration_months) {
-                      months = variant.duration_months;
+                    if (variant && variant.duration_days) {
+                      days = variant.duration_days;
                     }
                   }
 
                   const startDate = new Date();
                   const endDate = new Date();
-                  endDate.setMonth(endDate.getMonth() + months);
+                  endDate.setDate(endDate.getDate() + days);
 
                   await supabaseAdmin.from("subscriptions").insert({
                     user_id: userId,
                     plan_id: item.plan_id,
+                    plan_type: planType,
+                    quantity: 1,
                     start_date: startDate.toISOString().split("T")[0],
                     end_date: endDate.toISOString().split("T")[0],
                     status: "active"
