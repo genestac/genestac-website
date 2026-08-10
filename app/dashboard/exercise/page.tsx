@@ -1,5 +1,6 @@
 "use client";
 
+import { PremiumGate } from "@/components/PremiumGate";
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import {
@@ -92,6 +93,7 @@ export default function ExercisePlanPage() {
   const isToday = selectedDay === getToday();
 
   return (
+    <PremiumGate featureName="The Exercise Plan">
     <div className="p-6 md:p-10 max-w-6xl mx-auto w-full">
       <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-8 gap-4">
         <div>
@@ -238,5 +240,6 @@ export default function ExercisePlanPage() {
         )}
       </div>
     </div>
+    </PremiumGate>
   );
 }

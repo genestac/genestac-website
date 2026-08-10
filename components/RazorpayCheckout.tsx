@@ -10,6 +10,8 @@ interface RazorpayCheckoutProps {
   amount: number; // in paise (includes GST)
   originalAmount: number; // in paise (plan price before discount & GST)
   planName: string;
+  planId?: string;
+  variantId?: string;
   discountAmount?: number; // in paise (actual savings, defaults to originalAmount - amount)
   gstPercentage: number;
   taxAmount?: number; // in rupees, pre-calculated GST amount from pricing API
@@ -54,6 +56,8 @@ export default function RazorpayCheckout({
   amount,
   originalAmount,
   planName,
+  planId,
+  variantId,
   discountAmount: propDiscountAmount,
   gstPercentage,
   taxAmount: propTaxAmount,
@@ -138,6 +142,8 @@ export default function RazorpayCheckout({
             {
               item_type: "plan",
               item_name: planName,
+              plan_id: planId,
+              variant_id: variantId,
               quantity: 1,
               unit_price: calculatedOriginal,
               total_price: calculatedOriginal,

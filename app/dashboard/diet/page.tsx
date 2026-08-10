@@ -1,5 +1,6 @@
 "use client";
 
+import { PremiumGate } from "@/components/PremiumGate";
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { Fraunces, Inter } from "next/font/google";
@@ -158,10 +159,11 @@ export default function DietPlanPage() {
   const mealsToday = mealOrder.filter((m) => todayPlan[m]);
 
   return (
-    <div
-      className={`${fraunces.variable} ${inter.variable} min-h-full  font-(--font-body)`}
-    >
-      <div className="p-6 md:p-10 max-w-4xl mx-auto w-full">
+    <PremiumGate featureName="The Diet Plan">
+      <div
+        className={`${fraunces.variable} ${inter.variable} min-h-full  font-(--font-body)`}
+      >
+        <div className="p-6 md:p-10 max-w-4xl mx-auto w-full">
         {/* Header */}
         <div className="flex flex-col md:flex-row items-start md:items-end justify-between mb-8 gap-4">
           <div>
@@ -291,5 +293,6 @@ export default function DietPlanPage() {
         )}
       </div>
     </div>
+    </PremiumGate>
   );
 }

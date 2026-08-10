@@ -451,6 +451,8 @@ const CartPage = () => {
                         gstPercentage={gstPercentage}
                         taxAmount={gstAmount}
                         planName={planName}
+                        planId={selectedPlanId}
+                        variantId={selectedVariantId}
                         prefill={{ email: userEmail }}
                         couponId={couponId ?? undefined}
                         shippingAddressId={selectedAddressId}
