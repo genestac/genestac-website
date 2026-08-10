@@ -26,7 +26,8 @@ export async function POST(request: Request) {
       taxAmount,      // in rupees
       grandTotal,     // in rupees
       shippingAddressId, // uuid from user_addresses
-      items           // array of { item_type, item_name, quantity, unit_price, total_price }
+      items,           // array of { item_type, item_name, quantity, unit_price, total_price }
+      couponId        // optional coupon id
     } = data;
 
     if (!userId || grandTotal == null || !items || !Array.isArray(items) || items.length === 0) {
@@ -130,41 +131,67 @@ export async function POST(request: Request) {
       // Auto-assign subscription for free orders
       for (const item of items) {
         if ((item.item_type === "plan" || !item.item_type) && item.plan_id) {
-          // Check if user already has an active subscription to avoid duplicates
+          // Check if user already has an active subscription (across any plan)
           const { data: existingSub } = await supabaseAdmin
             .from("subscriptions")
             .select("id")
             .eq("user_id", userId)
-            .eq("plan_id", item.plan_id)
             .eq("status", "active")
             .single();
 
           if (!existingSub) {
+            // Fetch plan_type
+            let planType = "weightloss";
+            if (item.plan_id) {
+              const { data: planData } = await supabaseAdmin.from("plans").select("type").eq("id", item.plan_id).single();
+              if (planData && planData.type) planType = planData.type;
+            }
+
             // Find variant duration if variant_id provided
-            let months = 1;
+            let days = 30; // default to 30 days
             if (item.variant_id) {
               const { data: variant } = await supabaseAdmin
                 .from("plan_variants")
-                .select("duration_months")
+                .select("duration_days")
                 .eq("id", item.variant_id)
                 .single();
-              if (variant && variant.duration_months) {
-                months = variant.duration_months;
+              if (variant && variant.duration_days) {
+                days = variant.duration_days;
               }
             }
 
             const startDate = new Date();
             const endDate = new Date();
-            endDate.setMonth(endDate.getMonth() + months);
+            endDate.setDate(endDate.getDate() + days);
 
             await supabaseAdmin.from("subscriptions").insert({
               user_id: userId,
               plan_id: item.plan_id,
+              plan_type: planType,
+              quantity: 1,
               start_date: startDate.toISOString().split("T")[0],
               end_date: endDate.toISOString().split("T")[0],
               status: "active"
             });
           }
+        }
+      }
+
+      // Increment Coupon Usage for free orders if a coupon was used
+      if (couponId) {
+        const { data: coupon, error: fetchError } = await supabaseAdmin
+          .from("coupons")
+          .select("usage_count")
+          .eq("id", couponId)
+          .single();
+
+        if (coupon && !fetchError) {
+          await supabaseAdmin
+            .from("coupons")
+            .update({ usage_count: (coupon.usage_count || 0) + 1 })
+            .eq("id", couponId);
+        } else {
+          console.error("Failed to fetch coupon for increment:", fetchError);
         }
       }
 
