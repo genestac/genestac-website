@@ -5,7 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { MobileDashNav } from "@/components/MobileDashNav";
-import { Home, ShoppingCart, ShoppingBag, MapPin, FileText, LogOut, UserRound, Apple, Activity } from "lucide-react";
+import { Home, ShoppingCart, ShoppingBag, MapPin, FileText, LogOut, UserRound, Apple, Activity, Lock, ArrowRight, CheckCircle2, BadgeCheck, Sparkles } from "lucide-react";
 
 import { SubscriptionProvider, useSubscription } from "@/context/SubscriptionContext";
 
@@ -83,6 +83,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [loading, setLoading] = useState(true);
   const [cartCount, setCartCount] = useState(0);
   const [isBypassed, setIsBypassed] = useState(false);
+  const [hasActivePlan, setHasActivePlan] = useState<boolean | null>(null);
+  const [activePlanName, setActivePlanName] = useState<string | null>(null);
+  const [checkingPlan, setCheckingPlan] = useState(true);
 
   useEffect(() => {
     const bypass =
@@ -109,6 +112,85 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       setLoading(false);
     });
   }, [router]);
+
+  useEffect(() => {
+    if (!user) return;
+
+    const checkPlan = async () => {
+      if (isBypassed) {
+        setHasActivePlan(true);
+        setActivePlanName("Medical & Fitness Plan");
+        setCheckingPlan(false);
+        return;
+      }
+
+      try {
+        // 1. Check paid orders in orders table with order_items
+        const { data: paidOrders } = await supabase
+          .from("orders")
+          .select("id, order_items(item_name, item_type)")
+          .eq("user_id", user.id)
+          .eq("payment_status", "paid")
+          .order("created_at", { ascending: false })
+          .limit(1);
+
+        if (paidOrders && paidOrders.length > 0) {
+          const items = paidOrders[0].order_items || [];
+          const planItem = items.find((i: any) => i.item_type === "plan") || items[0];
+          const name = planItem?.item_name || "Active Health Plan";
+          setHasActivePlan(true);
+          setActivePlanName(name);
+          setCheckingPlan(false);
+          return;
+        }
+
+        // 2. Check successful payments in payments table
+        const { data: successfulPayments } = await supabase
+          .from("payments")
+          .select("id, orders(order_items(item_name, item_type))")
+          .eq("user_id", user.id)
+          .in("status", ["successful", "captured", "paid"])
+          .order("created_at", { ascending: false })
+          .limit(1);
+
+        if (successfulPayments && successfulPayments.length > 0) {
+          const items = (successfulPayments[0] as any)?.orders?.order_items || [];
+          const planItem = items.find((i: any) => i.item_type === "plan") || items[0];
+          const name = planItem?.item_name || "Active Health Plan";
+          setHasActivePlan(true);
+          setActivePlanName(name);
+          setCheckingPlan(false);
+          return;
+        }
+
+        // 3. Check user_plans table
+        const { data: userPlans } = await supabase
+          .from("user_plans")
+          .select("id, plan_name")
+          .eq("user_id", user.id)
+          .limit(1);
+
+        if (userPlans && userPlans.length > 0) {
+          const name = (userPlans[0] as any)?.plan_name || "Active Health Plan";
+          setHasActivePlan(true);
+          setActivePlanName(name);
+          setCheckingPlan(false);
+          return;
+        }
+
+        setHasActivePlan(false);
+        setActivePlanName(null);
+      } catch (err) {
+        console.error("Error checking active plan:", err);
+        setHasActivePlan(false);
+        setActivePlanName(null);
+      } finally {
+        setCheckingPlan(false);
+      }
+    };
+
+    checkPlan();
+  }, [user, isBypassed]);
 
   useEffect(() => {
     const fetchCartCount = async () => {
@@ -156,13 +238,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     // { label: "Invoices", icon: <FileText className="w-4 h-4" />, href: `/dashboard/invoices${qs}` },
   ];
 
-  if (loading) {
+  if (loading || checkingPlan) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-50">
         <div className="w-10 h-10 border-4 border-sky-600 border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
+
+  const showLockedState = hasActivePlan === false;
 
   return (
     <SubscriptionProvider>
@@ -186,3 +270,5 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     </SubscriptionProvider>
   );
 }
+
+

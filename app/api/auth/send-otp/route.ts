@@ -58,12 +58,13 @@ export async function POST(request: Request) {
     }
 
     if (resendApiKey) {
-      const resend = new Resend(resendApiKey);
-      await resend.emails.send({
-        from: resendFrom,
-        to: [email],
-        subject: "Your Genestac Account Verification Code",
-        html: `
+      try {
+        const resend = new Resend(resendApiKey);
+        const resendRes = await resend.emails.send({
+          from: resendFrom,
+          to: [email],
+          subject: "Your Genestac Account Verification Code",
+          html: `
           <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -143,8 +144,14 @@ export async function POST(request: Request) {
   </table>
 </body>
 </html>
-        `,
-      });
+          `,
+        });
+        if (resendRes.error) {
+          console.error("Resend error in send-otp:", resendRes.error);
+        }
+      } catch (emailErr) {
+        console.error("Failed to send OTP email via Resend:", emailErr);
+      }
     }
 
     return NextResponse.json({

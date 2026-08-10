@@ -36,7 +36,12 @@ export default function AuthModal({ isOpen, onClose, onSuccess }: AuthModalProps
     e.preventDefault();
     setMessage("");
 
-    if (!email || !password || (mode === "signUp" && (!name || !phoneNumber))) {
+    const cleanEmail = email.replace(/\s+/g, "").toLowerCase();
+    const cleanPhone = phoneNumber.replace(/\D/g, "");
+    const cleanName = name.trim().replace(/\s+/g, " ");
+    const cleanPassword = password.trim();
+
+    if (!cleanEmail || !cleanPassword || (mode === "signUp" && (!cleanName || !cleanPhone))) {
       setMessage("Please fill all required fields.");
       return;
     }
@@ -45,14 +50,27 @@ export default function AuthModal({ isOpen, onClose, onSuccess }: AuthModalProps
 
     try {
       if (mode === "signIn") {
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
+        const { error } = await supabase.auth.signInWithPassword({ email: cleanEmail, password: cleanPassword });
         if (error) { setMessage(error.message); return; }
         toast.success("Signed in successfully");
         onSuccess();
       } else {
-        const { error } = await supabase.auth.signUp({ email, password, options: { data: { full_name: name, phone: phoneNumber } } });
-        if (error) { setMessage(error.message); return; }
-        toast.success("Account created! Please check your email to confirm.");
+        const res = await fetch("/api/auth/register", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            name: cleanName,
+            email: cleanEmail,
+            phone: cleanPhone,
+            password: cleanPassword,
+          }),
+        });
+        const regData = await res.json();
+        if (!res.ok) {
+          setMessage(regData.error || "Failed to create account.");
+          return;
+        }
+        toast.success("Account created successfully!");
         onSuccess();
       }
     } catch (err: any) {

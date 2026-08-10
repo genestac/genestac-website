@@ -33,12 +33,12 @@ const Page = () => {
       } = await supabase.auth.getSession();
       if (session?.user) {
         // Determine role and redirect accordingly
-        const { data: profile, error: profileErr } = await supabase
-          .from("profiles")
-          .select("role")
+        const { data: staff } = await supabase
+          .from("staffs")
+          .select("role_id")
           .eq("id", session.user.id)
-          .single();
-        if (!profileErr && profile?.role === "superadmin") {
+          .maybeSingle();
+        if (staff) {
           router.push("/superadmin");
         } else {
           const params = new URLSearchParams(window.location.search);
@@ -53,10 +53,19 @@ const Page = () => {
     };
     checkSession();
 
-    // Show error if OAuth callback failed
+    // Show error if OAuth callback or Google sign-in failed
     const params = new URLSearchParams(window.location.search);
-    if (params.get("error") === "oauth_failed") {
-      setMessage("Google sign-in failed. Please try again or use email/password.");
+    const hashParams = new URLSearchParams(window.location.hash.substring(1));
+    const err = params.get("error") || hashParams.get("error");
+    const errDesc = params.get("error_description") || hashParams.get("error_description");
+
+    if (err) {
+      if (errDesc && errDesc.toLowerCase().includes("database error saving new user")) {
+        setMessage("Google Sign-In is unavailable for new Google accounts because of a Supabase trigger issue. Please create your account using Email and Password above.");
+        toast.error("Please register using Email and Password above.");
+      } else {
+        setMessage("Google sign-in failed. Please try again or use email/password.");
+      }
     }
   }, [router]);
 
@@ -124,64 +133,45 @@ const Page = () => {
         }
       }
     } else {
-      const trimmedName = name.trim();
-      const trimmedEmail = email.trim();
-      const trimmedPhoneNumber = phoneNumber.trim();
-      const { error, data } = await supabase.auth.signUp({
-        email: trimmedEmail,
-        password,
-        options: {
-          data: {
-            full_name: trimmedName,
-            role: "customer",
-          },
-        },
-      });
+      const trimmedName = name.trim().replace(/\s+/g, " ");
+      const trimmedEmail = email.replace(/\s+/g, "").toLowerCase();
+      const trimmedPhoneNumber = phoneNumber.replace(/\D/g, "");
+      const trimmedPassword = password.trim();
 
-      if (error) {
-        setLoading(false);
-        if (error.message.toLowerCase().includes("already registered") || error.message.toLowerCase().includes("already exists")) {
-          toast.error("This account already exists. Please login or use different credentials to create account.");
-        } else {
-          setMessage(error.message);
-        }
-        return;
-      }
-
-      const authUserId = data.user?.id;
-      if (!authUserId) {
-        setLoading(false);
-        setMessage("Account created, but we could not find the auth user id.");
-        return;
-      }
-
-      const { error: profileError } = await supabase
-        .from("users")
-        .insert({
-          id: authUserId,
-          name: trimmedName,
-          email: trimmedEmail,
-          phone: trimmedPhoneNumber,
-          status: "NEW",
+      try {
+        const res = await fetch("/api/auth/register", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            name: trimmedName,
+            email: trimmedEmail,
+            phone: trimmedPhoneNumber,
+            password: trimmedPassword,
+          }),
         });
 
-      setLoading(false);
-      if (profileError) {
-        setMessage(profileError.message);
-        return;
+        const regData = await res.json();
+        setLoading(false);
+
+        if (!res.ok) {
+          if (res.status === 409 || (regData.error && (regData.error.toLowerCase().includes("already registered") || regData.error.toLowerCase().includes("already exists")))) {
+            toast.error("This account already exists. Please login or use different credentials.");
+          } else {
+            setMessage(regData.error || "Failed to create account. Please try again.");
+          }
+          return;
+        }
+
+        const authUserId = regData.userId;
+        setOtpUserId(authUserId);
+        setOtpEmail(trimmedEmail);
+        setOtpPassword(trimmedPassword);
+        setShowOtpModal(true);
+        setMessage("");
+      } catch (err: any) {
+        setLoading(false);
+        setMessage(err.message || "An unexpected error occurred during registration.");
       }
-
-      setOtpUserId(authUserId);
-      setOtpEmail(trimmedEmail);
-      setOtpPassword(password);
-      setShowOtpModal(true);
-      setMessage("");
-
-      fetch("/api/auth/send-otp", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId: authUserId, email: trimmedEmail }),
-      }).catch(() => {});
     }
   };
 

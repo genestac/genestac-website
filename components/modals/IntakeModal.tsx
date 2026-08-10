@@ -95,10 +95,10 @@ export const IntakeModal: React.FC = () => {
     setAuthLoading(true);
 
     const errs: Record<string, boolean> = {};
-    const trimmedName = authData.fullName.trim();
-    const trimmedEmail = authData.email.trim();
-    const trimmedPhone = authData.phone.trim();
-    const password = authData.password;
+    const trimmedName = authData.fullName.trim().replace(/\s+/g, " ");
+    const trimmedEmail = authData.email.replace(/\s+/g, "").toLowerCase();
+    const trimmedPhone = authData.phone.replace(/\D/g, "");
+    const password = authData.password.trim();
 
     if (!trimmedEmail) errs.email = true;
     if (!password) errs.password = true;
@@ -167,71 +167,48 @@ export const IntakeModal: React.FC = () => {
         return;
       }
 
-      const { error, data } = await supabase.auth.signUp({
-        email: trimmedEmail,
-        password,
-        options: {
-          data: {
-            full_name: trimmedName,
-            role: "customer",
-          },
-        },
-      });
+      try {
+        const res = await fetch("/api/auth/register", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            name: trimmedName,
+            email: trimmedEmail,
+            phone: trimmedPhone,
+            password: password,
+          }),
+        });
 
-      if (error) {
-        setAuthLoading(false);
-        if (error.message.toLowerCase().includes("already registered") || error.message.toLowerCase().includes("already exists")) {
-          toast.error("This account already exists. Please login or use different credentials to create account.");
-        } else {
-          setAuthError(error.message);
+        const regData = await res.json();
+
+        if (!res.ok) {
+          setAuthLoading(false);
+          if (res.status === 409 || (regData.error && (regData.error.toLowerCase().includes("already registered") || regData.error.toLowerCase().includes("already exists")))) {
+            toast.error("This account already exists. Please login or use different credentials.");
+          } else {
+            setAuthError(regData.error || "Failed to create account.");
+          }
+          return;
         }
-        return;
-      }
 
-      const authUserId = data.user?.id;
+        const authUserId = regData.userId;
 
-      if (!authUserId) {
-        setAuthError("Account created, but auth user id was not found.");
-        setAuthLoading(false);
-        return;
-      }
-
-      const { error: userInsertError } = await supabase.from("users").insert({
-        id: authUserId,
-        name: trimmedName,
-        email: trimmedEmail,
-        phone: trimmedPhone,
-        status: "NEW",
-      });
-
-      if (userInsertError) {
-        setAuthError(userInsertError.message);
-        setAuthLoading(false);
-        return;
-      }
-
-      setFormData((prev) => ({
-        ...prev,
-        fullName: trimmedName,
-        email: trimmedEmail,
-        phone: trimmedPhone,
-      }));
-
-      setOtpUserId(authUserId);
-      setOtpEmail(trimmedEmail);
-      setOtpPassword(password);
-      setShowOtpModal(true);
-
-      fetch("/api/auth/send-otp", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          userId: authUserId,
+        setFormData((prev) => ({
+          ...prev,
+          fullName: trimmedName,
           email: trimmedEmail,
-        }),
-      }).catch(() => {});
+          phone: trimmedPhone,
+        }));
+
+        setOtpUserId(authUserId);
+        setOtpEmail(trimmedEmail);
+        setOtpPassword(password);
+        setShowOtpModal(true);
+        setAuthLoading(false);
+      } catch (err: any) {
+        setAuthLoading(false);
+        setAuthError(err.message || "Something went wrong during account creation.");
+      }
 
       setAuthLoading(false);
     } catch (error) {
