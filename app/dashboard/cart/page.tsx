@@ -458,39 +458,13 @@ const CartPage = () => {
                         shippingAddressId={selectedAddressId}
                       />
                     )}
-                    <p className="mt-3 flex items-center justify-center gap-1.5 text-[10px] text-slate-400 font-semibold">
+                    <p className="mt-3 flex items-center justify-center gap-1.5 text-xs text-slate-700 font-semibold">
                       <ShieldCheck className="w-4 h-4 text-emerald-500" /> SSL
                       Encrypted & Authenticated
                     </p>
                   </div>
 
-                  {/* Value Badges */}
-                  <div className="grid grid-cols-1 gap-2 pt-2 border-t border-slate-50">
-                    {[
-                      {
-                        icon: <Truck className="w-4 h-4 text-blue-500" />,
-                        label: "Free Insured Shipping",
-                      },
-                      {
-                        icon: <RotateCcw className="w-4 h-4 text-purple-500" />,
-                        label: "Refundable Consultation Fee",
-                      },
-                      {
-                        icon: (
-                          <BadgeCheck className="w-4 h-4 text-emerald-500" />
-                        ),
-                        label: "Certified Grade Ingredients",
-                      },
-                    ].map(({ icon, label }) => (
-                      <div
-                        key={label}
-                        className="flex items-center gap-2.5 bg-slate-50 border border-slate-100 rounded-xl p-2.5 text-xs text-slate-600 font-semibold"
-                      >
-                        {icon}
-                        <span>{label}</span>
-                      </div>
-                    ))}
-                  </div>
+                  
                 </aside>
               ) : (
                 <div className="bg-white border border-slate-100 rounded-3xl p-8 text-center shadow-sm">

@@ -163,7 +163,7 @@ export const PrivacyModal: React.FC = () => {
                     <li>Process and fulfill your prescriptions through our FDA-registered compounding pharmacy partners.</li>
                     <li>Manage overnight cold-chain logistics and order deliveries.</li>
                     <li>Allow our board-certified physicians and your dedicated Health Consultants to monitor your progress and provide ongoing 1-on-1 support.</li>
-                    <li>Process payments and issue refunds.</li>
+                    <li>Process payments</li>
                     <li>Send administrative information, such as appointment reminders, protocol updates, and order confirmations.</li>
                     <li>Improve our website functionality and clinical offerings.</li>
                   </ul>

@@ -75,9 +75,7 @@ export const Footer: React.FC = () => {
             >
               Privacy Policy
             </button>
-            <a href="#" className="hover:text-white transition-colors">
-              Refund Policy
-            </a>
+           
           </div>
         </div>
       </div>
