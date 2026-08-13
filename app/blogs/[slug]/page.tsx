@@ -79,7 +79,7 @@ export default async function BlogPostPage({ params }: Props) {
     .select("id, title, slug, og_image, published_at, updated_at, meta_description")
     .eq("status", "published")
     .neq("id", blog.id)
-    .order("published_at", { ascending: false })
+    .order("created_at", { ascending: false })
     .limit(3);
 
   return (
