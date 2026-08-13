@@ -37,7 +37,7 @@ export default async function BlogsPage({
     .from("blogs")
     .select("*", { count: "exact" })
     .eq("status", "published")
-    .order("published_at", { ascending: false })
+    .order("created_at", { ascending: false })
     .range(from, to);
 
   if (error) {

@@ -11,18 +11,20 @@ export const BlogCard = ({ blog, featured = false }: { blog: Blog; featured?: bo
       <Link href={`/blogs/${blog.slug}`} className="group block col-span-1 md:col-span-2 lg:col-span-3">
         <article className="bg-white rounded-3xl overflow-hidden border border-slate-200/80 shadow-soft hover:shadow-floating transition-all duration-500 flex flex-col md:flex-row">
           {/* Specific Image Container */}
-          <div className="relative w-full md:w-1/2 lg:w-[55%] h-[300px] md:h-[480px] shrink-0 bg-slate-100 overflow-hidden">
+          <div className="relative w-full md:w-1/2 lg:w-[55%] shrink-0 bg-slate-100 overflow-hidden">
             {blog.og_image ? (
               <Image
                 src={`${blog.og_image}?v=${new Date(blog.updated_at || blog.published_at || new Date()).getTime()}`}
                 alt={blog.meta_title || blog.title}
-                fill
-                className="object-cover group-hover:scale-105 transition-transform duration-700"
+                width={0}
+                height={0}
                 sizes="(max-width: 768px) 100vw, 55vw"
+                style={{ width: '100%', height: 'auto' }}
+                className="group-hover:scale-105 transition-transform duration-700"
                 priority
               />
             ) : (
-              <div className="absolute inset-0 bg-gradient-to-br from-brand-50 to-slate-100 flex items-center justify-center">
+              <div className="w-full h-[300px] md:h-[480px] bg-gradient-to-br from-brand-50 to-slate-100 flex items-center justify-center">
                 <svg className="w-16 h-16 text-brand-200" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                 </svg>
@@ -70,17 +72,19 @@ export const BlogCard = ({ blog, featured = false }: { blog: Blog; featured?: bo
     <Link href={`/blogs/${blog.slug}`} className="group block">
       <article className="h-full bg-white rounded-2xl overflow-hidden border border-slate-200/80 shadow-soft hover:shadow-floating transition-all duration-500 hover:-translate-y-2 flex flex-col">
         {/* Thumbnail */}
-        <div className="relative aspect-[16/9] w-full bg-slate-100 overflow-hidden shrink-0">
+        <div className="relative w-full bg-slate-100 overflow-hidden shrink-0 flex items-center justify-center">
           {blog.og_image ? (
             <Image
               src={`${blog.og_image}?v=${new Date(blog.updated_at || blog.published_at || new Date()).getTime()}`}
               alt={blog.meta_title || blog.title}
-              fill
-              className="object-cover transition-transform duration-700 group-hover:scale-105"
+              width={0}
+              height={0}
               sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+              style={{ width: '100%', height: 'auto' }}
+              className="transition-transform duration-700 group-hover:scale-105"
             />
           ) : (
-            <div className="absolute inset-0 bg-gradient-to-br from-brand-50 to-slate-100 flex items-center justify-center">
+            <div className="w-full aspect-[16/9] bg-gradient-to-br from-brand-50 to-slate-100 flex items-center justify-center">
               <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 text-brand-200" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
               </svg>
