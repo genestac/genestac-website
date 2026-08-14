@@ -27,7 +27,9 @@ export async function POST(request: Request) {
       grandTotal,     // in rupees
       shippingAddressId, // uuid from user_addresses
       items,           // array of { item_type, item_name, quantity, unit_price, total_price }
-      couponId        // optional coupon id
+      couponId,        // optional coupon id
+      prescriptionUrl,
+      needsConsultation
     } = data;
 
     if (!userId || grandTotal == null || !items || !Array.isArray(items) || items.length === 0) {
@@ -49,7 +51,9 @@ export async function POST(request: Request) {
         grand_total: grandTotal,
         shipping_address_id: shippingAddressId || null,
         status: "pending",
-        payment_status: "unpaid"
+        payment_status: "unpaid",
+        prescription_url: prescriptionUrl || null,
+        prescription_status: needsConsultation ? "consultation_booked" : (prescriptionUrl ? "pending_review" : "not_required")
       })
       .select()
       .single();

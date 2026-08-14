@@ -5,24 +5,16 @@ import { formatINR } from "@/lib/currency";
 import { Trash2, Plus, Minus, ShoppingBag } from "lucide-react";
 import Link from "next/link";
 
-interface CartItem {
-  id: string;
-  plan_id: string;
-  plans: {
-    name: string;
-    cart_name: string;
-    price: number;
-    image: string;
-  };
-}
+import { CartItem } from "@/context/CartContext";
 
 interface CartSummaryProps {
   items: CartItem[];
-  onRemove?: (planId: string) => void;
+  onRemove?: (name: string) => void;
   onClear?: () => void;
+  onChangeQty?: (index: number, delta: number) => void;
 }
 
-export const CartSummary: React.FC<CartSummaryProps> = ({ items, onRemove, onClear }) => {
+export const CartSummary: React.FC<CartSummaryProps> = ({ items, onRemove, onClear, onChangeQty }) => {
   if (items.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-12 px-4 text-center">
@@ -44,7 +36,7 @@ export const CartSummary: React.FC<CartSummaryProps> = ({ items, onRemove, onCle
   }
 
   const handleRemove = (item: CartItem) => {
-    onRemove?.(item.plan_id);
+    onRemove?.(item.name);
   };
 
   const handleClear = () => {
@@ -64,19 +56,20 @@ export const CartSummary: React.FC<CartSummaryProps> = ({ items, onRemove, onCle
 
       {/* Cart Items list */}
       <div className="divide-y divide-slate-100">
-        {items.map((item) => {
-          const price = Number(item.plans.price);
-          const name = item.plans.cart_name || item.plans.name;
+        {items.map((item, index) => {
+          const price = Number(item.price);
+          const name = item.name;
+          const isPlan = item.category === "plan" || !!item.planId;
           return (
             <div
-              key={item.plan_id}
+              key={name + index}
               className="py-4 grid grid-cols-1 sm:grid-cols-12 gap-4 items-center px-1"
             >
               {/* Product Info (Col 1-6) */}
               <div className="col-span-6 flex items-center gap-4">
                 <div className=" rounded-xl p-1 flex items-center justify-center shrink-0">
                   <img
-                    src="/logo2.png"
+                    src={item.image || "/logo2.png"}
                     alt={name}
                     className="h-16 w-auto object-contain"
                   />
@@ -86,21 +79,43 @@ export const CartSummary: React.FC<CartSummaryProps> = ({ items, onRemove, onCle
                     {name}
                   </h4>
                   <p className="text-sm text-slate-800 mt-0.5 font-medium">
-                    {formatINR(price)} subscription
+                    {formatINR(price)} {isPlan ? "subscription" : "each"}
                   </p>
                 </div>
               </div>
 
               {/* Quantity Controls (Col 3) */}
               <div className="col-span-3 flex justify-start sm:justify-center">
-                <span className="rounded-xl border border-slate-200/60 bg-slate-50 px-3 py-2 text-xs font-bold text-slate-800">
-                  1
-                </span>
+                {isPlan ? (
+                  <span className="rounded-xl border border-slate-200/60 bg-slate-50 px-3 py-2 text-xs font-bold text-slate-800">
+                    1
+                  </span>
+                ) : (
+                  <div className="flex items-center gap-2 bg-slate-50 rounded-lg p-1 border border-slate-200/60">
+                    <button
+                      type="button"
+                      onClick={() => onChangeQty?.(index, -1)}
+                      className="w-6 h-6 flex items-center justify-center bg-white rounded shadow-sm hover:text-slate-600 font-bold text-slate-500"
+                    >
+                      -
+                    </button>
+                    <span className="text-xs font-extrabold w-4 text-center text-slate-700">
+                      {item.qty}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => onChangeQty?.(index, 1)}
+                      className="w-6 h-6 flex items-center justify-center bg-white rounded shadow-sm hover:text-slate-600 font-bold text-slate-500"
+                    >
+                      +
+                    </button>
+                  </div>
+                )}
               </div>
 
               {/* Item Total (Col 2) */}
               <div className="col-span-2 text-left sm:text-right font-extrabold text-slate-800 text-sm">
-                {formatINR(price)}
+                {formatINR(price * (item.qty || 1))}
               </div>
 
               {/* Remove Trigger (Col 1) */}

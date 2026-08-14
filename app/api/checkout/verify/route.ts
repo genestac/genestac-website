@@ -62,12 +62,21 @@ export async function POST(request: Request) {
       console.error("Failed to update payment status:", paymentUpdateError);
     }
 
-    // 3. Update the orders table
+    // 3. Get the order details to check prescription status
+    const { data: orderDetails } = await supabaseAdmin
+      .from("orders")
+      .select("prescription_status")
+      .eq("id", paymentRecord.order_id)
+      .single();
+      
+    const isUnderReview = orderDetails?.prescription_status === "pending_review" || orderDetails?.prescription_status === "consultation_booked";
+
+    // 4. Update the orders table
     const { error: orderUpdateError } = await supabaseAdmin
       .from("orders")
       .update({
         payment_status: "paid",
-        status: "confirmed"
+        status: isUnderReview ? "under_review" : "confirmed"
       })
       .eq("id", paymentRecord.order_id);
 

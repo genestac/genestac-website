@@ -3,34 +3,6 @@ import React, { createContext, useContext, useState, useEffect, ReactNode, useCa
 import { toast } from "react-hot-toast";
 import { formatINR } from "@/lib/currency";
 import { supabase } from "@/lib/supabase";
-import AgeGenderPrompt from "@/components/AgeGenderPopUp";
-
-interface AgeGenderInfo {
-  age?: number;
-  gender?: "male" | "female" | "other";
-}
-
-async function getUserAgeGender(userId: string): Promise<AgeGenderInfo | null> {
-  const { data, error } = await supabase
-    .from("users")
-    .select("metadata")
-    .eq("id", userId)
-    .single();
-  if (error || !data) return null;
-  const meta = data.metadata as Record<string, any> || {};
-  if (meta.age && meta.gender) return { age: meta.age, gender: meta.gender };
-  return null;
-}
-
-async function updateUserAgeGender(userId: string, age: number, gender: string) {
-  const { data } = await supabase
-    .from("users")
-    .select("metadata")
-    .eq("id", userId)
-    .single();
-  const meta = (data?.metadata as Record<string, any>) || {};
-  await supabase.from("users").update({ metadata: { ...meta, age, gender } }).eq("id", userId);
-}
 
 export interface CartItem {
   id?: string;
@@ -40,6 +12,7 @@ export interface CartItem {
   qty: number;
   category?: "product" | "plan";
   planId?: string;
+  requires_prescription?: boolean;
 }
 
 interface CartContextType {
@@ -52,6 +25,7 @@ interface CartContextType {
       image: string;
       category?: CartItem["category"];
       planId?: string;
+      requires_prescription?: boolean;
     },
     options?: { showToast?: boolean },
   ) => void;
@@ -97,19 +71,36 @@ export const CartProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [cart, setCart] = useState<CartItem[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
-  const [showAgePrompt, setShowAgePrompt] = useState(false);
-  const [pendingProduct, setPendingProduct] = useState<any>(null);
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => setUserId(data.user?.id ?? null));
   }, []);
 
   useEffect(() => {
+    const savedCart = localStorage.getItem("cart");
+    if (savedCart) {
+      try {
+        setCart(JSON.parse(savedCart));
+      } catch (e) {}
+    }
+
     syncCartFromDb().then((items) => {
-      if (items && items.length > 0) setCart(items);
+      setCart((prev) => {
+        const nonPlanItems = prev.filter(i => !i.planId);
+        if (items) {
+          return [...nonPlanItems, ...items];
+        }
+        return prev;
+      });
       setLoaded(true);
     });
   }, []);
+
+  useEffect(() => {
+    if (loaded) {
+      localStorage.setItem("cart", JSON.stringify(cart));
+    }
+  }, [cart, loaded]);
 
   const addProductToCart = useCallback((product: any, options: any = {}) => {
     setCart((prev) => {
@@ -119,7 +110,16 @@ export const CartProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         newCart[idx] = { ...newCart[idx], qty: newCart[idx].qty + 1 };
         return newCart;
       }
-      return [...prev, { id: product.id, name: product.name, price: product.price, image: product.image, qty: 1, category: product.category, planId: product.planId }];
+      return [...prev, { 
+        id: product.id, 
+        name: product.name, 
+        price: product.price, 
+        image: product.image, 
+        qty: 1, 
+        category: product.category, 
+        planId: product.planId, 
+        requires_prescription: product.requires_prescription 
+      }];
     });
     if (product.planId) {
       getAuthToken().then((token) => {
@@ -132,41 +132,10 @@ export const CartProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const addToCart = useCallback(
     (product: any, options: any = {}) => {
-      if (!userId) {
-        setPendingProduct({ product, options });
-        setShowAgePrompt(true);
-        return;
-      }
-      getUserAgeGender(userId).then((info) => {
-        if (info) {
-          addProductToCart(product, options);
-        } else {
-          setPendingProduct({ product, options });
-          setShowAgePrompt(true);
-        }
-      });
+      addProductToCart(product, options);
     },
-    [userId, addProductToCart],
+    [addProductToCart],
   );
-
-  const handleAgeSave = useCallback(
-    async (age: number, gender: "male" | "female" | "other") => {
-      if (userId) await updateUserAgeGender(userId, age, gender);
-      if (pendingProduct) {
-        addProductToCart(pendingProduct.product, pendingProduct.options);
-        setPendingProduct(null);
-      }
-    },
-    [userId, pendingProduct, addProductToCart],
-  );
-
-  const handleAgeClose = useCallback(() => {
-    if (pendingProduct) {
-      addProductToCart(pendingProduct.product, pendingProduct.options);
-      setPendingProduct(null);
-    }
-    setShowAgePrompt(false);
-  }, [pendingProduct, addProductToCart]);
 
   const removeFromCart = useCallback((name: string) => {
     setCart((prev) => {
@@ -214,7 +183,6 @@ export const CartProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   return (
     <CartContext.Provider value={{ cart, addToCart, removeFromCart, changeQty, clearCart, totalItems, subtotal, cartSummaryText: getCartSummaryText() }}>
       {children}
-      <AgeGenderPrompt isOpen={showAgePrompt} onClose={handleAgeClose} onSave={handleAgeSave} />
     </CartContext.Provider>
   );
 };
