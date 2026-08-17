@@ -41,6 +41,7 @@ export async function GET() {
         )
       `)
       .eq("is_active", true)
+      .eq("visible_on", "website")
       .order("created_at", { ascending: true });
 
     if (error) {

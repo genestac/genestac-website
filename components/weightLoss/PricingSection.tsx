@@ -87,7 +87,7 @@ export const PricingSection: React.FC = () => {
         const res = await fetch("/api/plans");
         const data = await res.json();
         if (res.ok && Array.isArray(data)) {
-          setPlans(data);
+          setPlans(data.filter((p: PlanRecord) => !p.visibleOn || p.visibleOn.toLowerCase() === "website"));
         }
       } catch (err) {
         console.error("Failed to load plans:", err);
@@ -98,8 +98,10 @@ export const PricingSection: React.FC = () => {
     fetchPlans();
   }, []);
 
+  const entryPlan = plans.find((p) => p.name.toLowerCase().includes("assessment")) || plans.find((p) => p.isEntryLevel);
+
   const handleSelectPlan = async (plan: PlanRecord) => {
-    if (plan.isEntryLevel) {
+    if (plan.id === entryPlan?.id || !plan.variants || plan.variants.length === 0) {
       const entryVariant = plan.variants?.find((v) => v.duration_days === 30 || v.duration_label.toLowerCase().includes("1 month")) || plan.variants?.[0];
       const {
         data: { session },
@@ -179,12 +181,10 @@ export const PricingSection: React.FC = () => {
     }
   };
 
-  const entryPlan = plans.find((p) => p.isEntryLevel);
-
   // Enforce a fixed display order regardless of API/DB order.
   const PLAN_ORDER = ["starter", "premium", "medical"];
   const subscriptionPlans = plans
-    .filter((p) => !p.isEntryLevel)
+    .filter((p) => p.id !== entryPlan?.id)
     .sort((a, b) => {
       const aIndex = PLAN_ORDER.indexOf(a.name.toLowerCase());
       const bIndex = PLAN_ORDER.indexOf(b.name.toLowerCase());

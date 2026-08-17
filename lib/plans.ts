@@ -24,7 +24,10 @@ export type PlanRecord = {
   featured?: boolean;
   note?: string;
   isEntryLevel?: boolean;
+  durationValue?: number;
+  durationUnit?: string;
   gstPercentage: number;
+  visibleOn?: string | null;
   variants?: PlanVariant[];
 };
 
@@ -41,7 +44,10 @@ type DbPlan = {
   is_featured?: boolean | null;
   note?: string | null;
   is_entry_level?: boolean | null;
+  duration_value?: number | null;
+  duration_unit?: string | null;
   gst_percentage?: number | null;
+  visible_on?: string | null;
   plan_variants?: PlanVariant[];
 };
 
@@ -62,7 +68,10 @@ export function mapDbPlanToPlan(p: DbPlan): PlanRecord {
     featured: Boolean(p.is_featured),
     note: p.note ?? undefined,
     isEntryLevel: Boolean(p.is_entry_level),
+    durationValue: p.duration_value ?? undefined,
+    durationUnit: p.duration_unit ?? undefined,
     gstPercentage: Number(p.gst_percentage) || 5,
+    visibleOn: p.visible_on ?? null,
     variants: Array.isArray(p.plan_variants)
       ? p.plan_variants.filter((v) => v.is_active)
       : undefined,
