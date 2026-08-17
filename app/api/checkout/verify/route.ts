@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import crypto from "crypto";
 import { createClient } from "@supabase/supabase-js";
+import { sendWhatsAppMessage } from "@/lib/whatsapp";
 
 export async function POST(request: Request) {
   try {
@@ -82,6 +83,56 @@ export async function POST(request: Request) {
 
     if (orderUpdateError) {
       console.error("Failed to update order status:", orderUpdateError);
+    }
+
+    // 4a. Notify Admin if review is required
+    if (isUnderReview) {
+      try {
+        const { data: settingsData } = await supabaseAdmin
+          .from("global_settings")
+          .select("settings_key, settings_value")
+          .in("settings_key", ["whatsapp_report_numbers", "order_settings"]);
+          
+        let reportNumbers: string[] = [];
+        let isEnabled = true;
+        
+        if (settingsData) {
+          const numSetting = settingsData.find(s => s.settings_key === "whatsapp_report_numbers");
+          if (numSetting) reportNumbers = numSetting.settings_value?.numbers || [];
+          
+          const orderSetting = settingsData.find(s => s.settings_key === "order_settings");
+          if (orderSetting && typeof orderSetting.settings_value?.order_review_notifications_enabled === "boolean") {
+            isEnabled = orderSetting.settings_value.order_review_notifications_enabled;
+          }
+        }
+        
+        if (isEnabled && reportNumbers.length > 0) {
+          const { data: orderUser } = await supabaseAdmin
+            .from("orders")
+            .select(`user_id, users(name, phone)`)
+            .eq("id", paymentRecord.order_id)
+            .single();
+
+          const usersData = orderUser?.users as any;
+          const userName = (Array.isArray(usersData) ? usersData[0]?.name : usersData?.name) || "A customer";
+          const userPhone = (Array.isArray(usersData) ? usersData[0]?.phone : usersData?.phone) || "N/A";
+          const reason = orderDetails?.prescription_status === "consultation_booked" ? "Consultation Booked" : "Prescription Review";
+          
+          const message = `🚨 *Review Required* 🚨\n\nA new order requires medical review.\n*Order ID:* ${paymentRecord.order_id}\n*Customer:* ${userName}\n*Phone:* ${userPhone}\n*Reason:* ${reason}\n\nPlease review this order in the admin dashboard.`;
+          
+          for (const phone of reportNumbers) {
+             try {
+               await sendWhatsAppMessage(phone, message);
+             } catch (waError) {
+               console.error(`Failed to send WhatsApp message to admin ${phone}:`, waError);
+             }
+          }
+        } else {
+          console.warn("No whatsapp_report_numbers configured in global_settings. Cannot notify admin about review.");
+        }
+      } catch (err) {
+        console.error("Failed to fetch admin report numbers or notify admins:", err);
+      }
     }
 
     // 4. Increment Coupon Usage if a coupon was used

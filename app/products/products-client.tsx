@@ -4,6 +4,7 @@ import React, { useState, useMemo } from "react";
 import { useCart } from "@/context/CartContext";
 import { useModals } from "@/context/ModalContext";
 import { formatINR } from "@/lib/currency";
+import Link from "next/link";
 
 export function ProductsClient({ initialProducts }: { initialProducts: any[] }) {
   const { addToCart } = useCart();
@@ -31,7 +32,9 @@ export function ProductsClient({ initialProducts }: { initialProducts: any[] }) 
     setActiveCategory(cat);
   };
 
-  const handleAddToCart = (p: any) => {
+  const handleAddToCart = (e: React.MouseEvent, p: any) => {
+    e.preventDefault();
+    e.stopPropagation();
     addToCart({ 
       name: p.name, 
       price: p.price, 
@@ -433,7 +436,8 @@ export function ProductsClient({ initialProducts }: { initialProducts: any[] }) 
               const inStock = p.stock_quantity > 0;
 
               return (
-                <div
+                <Link
+                  href={`/products/${p.slug || p.id}`}
                   key={p.id}
                   style={{
                     border: "1px solid #e5e7eb",
@@ -444,6 +448,8 @@ export function ProductsClient({ initialProducts }: { initialProducts: any[] }) 
                     transition: "box-shadow 0.15s ease, transform 0.15s ease",
                     background: "#fff",
                     position: "relative" as const,
+                    textDecoration: "none",
+                    color: "inherit"
                   }}
                   onMouseEnter={(e) => {
                     e.currentTarget.style.boxShadow = "0 6px 20px rgba(0,0,0,.07)";
@@ -599,7 +605,7 @@ export function ProductsClient({ initialProducts }: { initialProducts: any[] }) 
                     <div style={{ marginTop: "10px" }}>
                       {inStock ? (
                         <button
-                          onClick={() => handleAddToCart(p)}
+                          onClick={(e) => handleAddToCart(e, p)}
                           style={{
                             width: "100%",
                             background: isAdded ? "#1fa564" : "#0ea5e9",
@@ -637,7 +643,7 @@ export function ProductsClient({ initialProducts }: { initialProducts: any[] }) 
                       )}
                     </div>
                   </div>
-                </div>
+                </Link>
               );
             })}
           </div>
