@@ -128,6 +128,7 @@ export const Header: React.FC = () => {
       ],
     },
     {name:"Blogs", href:"/blogs"},
+    {name:"Products", href:"/products"},
   ];
 
   return (

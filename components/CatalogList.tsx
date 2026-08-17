@@ -3,16 +3,24 @@
 import React, { useState } from "react";
 import { products } from "@/data/products";
 import { useCart } from "@/context/CartContext";
+import { useModals } from "@/context/ModalContext";
 import { formatINR } from "@/lib/currency";
 import { ShoppingCart, Check, Sparkles, AlertCircle } from "lucide-react";
 
 export const CatalogList: React.FC = () => {
   const { addToCart } = useCart();
+  const { setCartOpen } = useModals();
   const [addedItem, setAddedItem] = useState<string | null>(null);
 
   const handleAddToCart = (p: any) => {
-    addToCart({ name: p.name, price: p.price, image: p.image });
+    addToCart({ 
+      name: p.name, 
+      price: p.price, 
+      image: p.image,
+      requires_prescription: p.requires_prescription
+    });
     setAddedItem(p.name);
+    setCartOpen(true);
     setTimeout(() => {
       setAddedItem(null);
     }, 1500);

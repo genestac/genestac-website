@@ -39,6 +39,12 @@ interface Order {
   grand_total: number | null;
   created_at: string;
   updated_at: string;
+  order_items?: {
+    id: string;
+    item_type: string;
+    item_name: string;
+    quantity: number;
+  }[];
 }
 
 interface Payment {
@@ -101,7 +107,7 @@ const Page = () => {
       // Fetch Orders for this user
       const { data: dbOrders, error } = await supabase
         .from("orders")
-        .select("*")
+        .select("*, order_items(*)")
         .eq("user_id", currentUser.id)
         .order("created_at", { ascending: false });
 
@@ -416,6 +422,22 @@ const Page = () => {
                           {formatDate(order.created_at)}
                         </p>
                       </div>
+
+                      {order.order_items && order.order_items.length > 0 && (
+                        <div className="sm:col-span-4 mt-1 pt-3 border-t border-slate-50">
+                          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">Items Ordered</p>
+                          <ul className="space-y-1.5 grid grid-cols-1 sm:grid-cols-2 gap-2">
+                            {order.order_items
+                              .filter(item => !['consultation', 'assessment', 'treatment', 'prescription'].includes(item.item_type || ''))
+                              .map(item => (
+                              <li key={item.id} className="text-xs text-slate-700 flex items-center justify-between bg-slate-50 p-2.5 rounded-lg border border-slate-100">
+                                <span className="font-medium">{item.item_name}</span>
+                                <span className="text-slate-500 font-mono text-[10px] bg-white px-2 py-0.5 rounded shadow-sm border border-slate-100">Qty: {item.quantity}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>

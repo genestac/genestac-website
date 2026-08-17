@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import Razorpay from "razorpay";
 import { supabaseAdmin } from "@/lib/supabase-admin";
+import { sendWhatsAppMessage } from "@/lib/whatsapp";
 
 export async function POST(request: Request) {
   try {
@@ -27,7 +28,9 @@ export async function POST(request: Request) {
       grandTotal,     // in rupees
       shippingAddressId, // uuid from user_addresses
       items,           // array of { item_type, item_name, quantity, unit_price, total_price }
-      couponId        // optional coupon id
+      couponId,        // optional coupon id
+      prescriptionUrl,
+      needsConsultation
     } = data;
 
     if (!userId || grandTotal == null || !items || !Array.isArray(items) || items.length === 0) {
@@ -49,7 +52,9 @@ export async function POST(request: Request) {
         grand_total: grandTotal,
         shipping_address_id: shippingAddressId || null,
         status: "pending",
-        payment_status: "unpaid"
+        payment_status: "unpaid",
+        prescription_url: prescriptionUrl || null,
+        prescription_status: needsConsultation ? "consultation_booked" : (prescriptionUrl ? "pending_review" : "not_required")
       })
       .select()
       .single();
@@ -112,11 +117,62 @@ export async function POST(request: Request) {
 
     // Step 3: Handle free orders (100% discount) — Razorpay cannot process ₹0
     if (grandTotal <= 0) {
+      const isUnderReview = needsConsultation || prescriptionUrl;
+      const finalStatus = isUnderReview ? "under_review" : "confirmed";
+
       // Mark order as paid directly without Razorpay
       await supabaseAdmin
         .from("orders")
-        .update({ status: "confirmed", payment_status: "paid" })
+        .update({ status: finalStatus, payment_status: "paid" })
         .eq("id", order.id);
+
+      if (isUnderReview) {
+        try {
+          const { data: settingsData } = await supabaseAdmin
+            .from("global_settings")
+            .select("settings_key, settings_value")
+            .in("settings_key", ["whatsapp_report_numbers", "order_settings"]);
+            
+          let reportNumbers: string[] = [];
+          let isEnabled = true;
+          
+          if (settingsData) {
+            const numSetting = settingsData.find(s => s.settings_key === "whatsapp_report_numbers");
+            if (numSetting) reportNumbers = numSetting.settings_value?.numbers || [];
+            
+            const orderSetting = settingsData.find(s => s.settings_key === "order_settings");
+            if (orderSetting && typeof orderSetting.settings_value?.order_review_notifications_enabled === "boolean") {
+              isEnabled = orderSetting.settings_value.order_review_notifications_enabled;
+            }
+          }
+
+          if (isEnabled && reportNumbers.length > 0) {
+            const { data: orderUser } = await supabaseAdmin
+              .from("users")
+              .select("name, phone")
+              .eq("id", userId)
+              .single();
+
+            const userName = orderUser?.name || "A customer";
+            const userPhone = orderUser?.phone || "N/A";
+            const reason = needsConsultation ? "Consultation Booked" : "Prescription Review";
+            
+            const message = `🚨 *Review Required* 🚨\n\nA new free order requires medical review.\n*Order ID:* ${order.id}\n*Customer:* ${userName}\n*Phone:* ${userPhone}\n*Reason:* ${reason}\n\nPlease review this order in the admin dashboard.`;
+            
+            for (const phone of reportNumbers) {
+               try {
+                 await sendWhatsAppMessage(phone, message);
+               } catch (waError) {
+                 console.error(`Failed to send WhatsApp message to admin ${phone}:`, waError);
+               }
+            }
+          } else {
+            console.warn("No whatsapp_report_numbers configured in global_settings. Cannot notify admin about review.");
+          }
+        } catch (err) {
+          console.error("Failed to fetch admin report numbers or notify admins:", err);
+        }
+      }
 
       // Record a free payment entry
       await supabaseAdmin.from("payments").insert({

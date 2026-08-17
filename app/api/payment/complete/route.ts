@@ -177,6 +177,39 @@ export async function POST(request: Request) {
         if (updateError) {
           console.error("Failed to update order with invoice info:", updateError);
         }
+
+        // --- Stock Deduction Logic ---
+        const { data: orderItems, error: itemsError } = await supabaseAdmin
+          .from("order_items")
+          .select("item_name, quantity, item_type")
+          .eq("order_id", paymentRecord.order_id);
+          
+        if (!itemsError && orderItems) {
+          for (const item of orderItems) {
+            if (item.item_type === "product") {
+              const { data: inventoryItem } = await supabaseAdmin
+                .from("inventory")
+                .select("id, stock_quantity")
+                .eq("name", item.item_name)
+                .single();
+                
+              if (inventoryItem) {
+                const newStock = Math.max(0, (inventoryItem.stock_quantity || 0) - (item.quantity || 1));
+                const { error: stockUpdateError } = await supabaseAdmin
+                  .from("inventory")
+                  .update({ stock_quantity: newStock })
+                  .eq("id", inventoryItem.id);
+                  
+                if (stockUpdateError) {
+                  console.error(`Failed to update stock for ${item.item_name}:`, stockUpdateError);
+                } else {
+                  console.log(`Stock updated for ${item.item_name}: ${inventoryItem.stock_quantity} -> ${newStock}`);
+                }
+              }
+            }
+          }
+        }
+        // --- End Stock Deduction Logic ---
       }
     } catch (updateErr) {
       console.error("Failed to update order with invoice info:", updateErr);

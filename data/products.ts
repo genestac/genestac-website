@@ -7,6 +7,7 @@ export interface Product {
   description: string;
   inStock: boolean;
   purity: string;
+  requires_prescription?: boolean;
 }
 
 export const products: Product[] = [

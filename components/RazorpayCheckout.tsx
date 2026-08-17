@@ -22,6 +22,9 @@ interface RazorpayCheckoutProps {
   };
   couponId?: string;
   shippingAddressId?: string | null;
+  items?: any[];
+  prescriptionUrl?: string | null;
+  needsConsultation?: boolean;
 }
 
 function loadRazorpayScript(): Promise<void> {
@@ -64,6 +67,9 @@ export default function RazorpayCheckout({
   prefill = {},
   couponId,
   shippingAddressId,
+  items,
+  prescriptionUrl,
+  needsConsultation,
 }: RazorpayCheckoutProps) {
   const [loading, setLoading] = useState(false);
   const [showMessage, setShowMessage] = useState(false);
@@ -138,7 +144,15 @@ export default function RazorpayCheckout({
           taxAmount: calculatedTax,
           grandTotal: calculatedGrandTotal,
           shippingAddressId: shippingAddressId || undefined,
-          items: [
+          items: items && items.length > 0 ? items.map((item) => ({
+            item_type: item.category || "plan",
+            item_name: item.name,
+            plan_id: item.planId || undefined,
+            variant_id: variantId,
+            quantity: item.qty || 1,
+            unit_price: Number(item.price),
+            total_price: Number(item.price) * (item.qty || 1),
+          })) : [
             {
               item_type: "plan",
               item_name: planName,
@@ -149,6 +163,9 @@ export default function RazorpayCheckout({
               total_price: calculatedOriginal,
             },
           ],
+          couponId,
+          prescriptionUrl,
+          needsConsultation
         };
       console.log("[Checkout] Sending payload to /api/checkout:", JSON.stringify(payload));
 

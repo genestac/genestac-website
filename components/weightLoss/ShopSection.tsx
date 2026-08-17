@@ -18,6 +18,7 @@ export const ShopSection: React.FC = () => {
       name: product.name,
       price: product.price,
       image: product.image,
+      requires_prescription: product.requires_prescription
     });
 
     // Visual button feedback

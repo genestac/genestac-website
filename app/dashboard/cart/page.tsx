@@ -14,9 +14,13 @@ import {
   ShoppingBag,
   Home,
   LogIn,
+  FileUp,
+  CalendarCheck,
+  Check
 } from "lucide-react";
 import RazorpayCheckout from "@/components/RazorpayCheckout";
 import { formatINR } from "@/lib/currency";
+import { uploadToCloudinary } from "@/lib/cloudinary";
 import { supabase } from "@/lib/supabase";
 import CouponInput from "@/components/CouponInput";
 import AddressSelector from "@/components/AddressSelector";
@@ -34,17 +38,17 @@ interface CartItem {
   };
 }
 
+import { useCart } from "@/context/CartContext";
+
 const CartPage = () => {
   const router = useRouter();
-  const [items, setItems] = useState<CartItem[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { cart, addToCart, removeFromCart, clearCart, changeQty, totalItems, subtotal } = useCart();
   const [checkingAuth, setCheckingAuth] = useState(true);
 
-  const planName = items[0]?.plans?.cart_name ?? items[0]?.plans?.name ?? "";
-  const selectedPlanId = items[0]?.plan_id ?? "";
+  // Fallback for single plan (for backward compatibility where only one plan was expected)
+  const planName = cart[0]?.name ?? "";
+  const selectedPlanId = cart[0]?.planId ?? "";
   const [selectedVariantId, setSelectedVariantId] = useState<string | undefined>(undefined);
-  const totalItems = items.length;
-  const subtotal = items.reduce((sum, i) => sum + Number(i.plans.price), 0);
 
   const [userEmail, setUserEmail] = useState<string>("");
   const [user, setUser] = useState<any>(null);
@@ -65,6 +69,8 @@ const CartPage = () => {
         try {
           const parsed = JSON.parse(guestItem);
           if (parsed.planId) {
+            // Note: CartContext's syncCartFromDb won't pick this up immediately if we don't reload or manually add it,
+            // but the user is logged in now. The guest_cart_item logic could be refactored, but for now we just sync it to DB.
             await fetch("/api/cart", {
               method: "POST",
               headers: {
@@ -73,6 +79,8 @@ const CartPage = () => {
               },
               body: JSON.stringify({ planId: parsed.planId }),
             });
+            // We reload so CartContext picks it up properly.
+            window.location.reload();
           }
           if (parsed.variantId) {
             setSelectedVariantId(parsed.variantId);
@@ -82,25 +90,16 @@ const CartPage = () => {
           // ignore
         }
       }
-
-      try {
-        const res = await fetch("/api/cart", {
-          headers: { Authorization: `Bearer ${session.access_token}` },
-        });
-        if (res.ok) {
-          const data = await res.json();
-          setItems(data);
-        }
-      } catch {
-        // ignore
-      } finally {
-        setLoading(false);
-      }
     };
     init();
   }, [router]);
 
   const [discountPercentage, setDiscountPercentage] = useState(0);
+  
+  const [prescriptionUrl, setPrescriptionUrl] = useState<string | null>(null);
+  const [isUploadingRx, setIsUploadingRx] = useState(false);
+  const [bookingConsultation, setBookingConsultation] = useState(false);
+
   const [activeCoupon, setActiveCoupon] = useState<string | null>(null);
   const [couponId, setCouponId] = useState<string | null>(null);
 
@@ -124,17 +123,17 @@ const CartPage = () => {
   const [pricingLoading, setPricingLoading] = useState(false);
 
   useEffect(() => {
-    if (!items.length) return;
-    const planId = items[0]?.plan_id;
-    if (!planId) return;
+    if (!cart.length) {
+      setPricing(null);
+      return;
+    }
 
     setPricingLoading(true);
     fetch("/api/pricing/calculate", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        planId,
-        variantId: selectedVariantId,
+        items: cart,
         discountPercentage: discountPercentage > 0 ? discountPercentage : undefined,
       }),
     })
@@ -145,7 +144,46 @@ const CartPage = () => {
         }
       })
       .finally(() => setPricingLoading(false));
-  }, [items, selectedVariantId, discountPercentage]);
+  }, [cart, selectedVariantId, discountPercentage]);
+
+  
+  const requiresRx = cart.some((item) => item.requires_prescription);
+  const hasFulfilledRx = prescriptionUrl !== null || bookingConsultation || !requiresRx;
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setIsUploadingRx(true);
+    try {
+      const url = await uploadToCloudinary(file);
+      setPrescriptionUrl(url);
+      setBookingConsultation(false);
+    } catch (err: any) {
+      alert("Failed to upload prescription: " + err.message);
+    } finally {
+      setIsUploadingRx(false);
+    }
+  };
+
+  const handleBookConsultation = async () => {
+    setBookingConsultation(true);
+    setPrescriptionUrl(null);
+    try {
+      const { data, error } = await supabase.from("plans").select("*").order("created_at", { ascending: true }).limit(1).single();
+      if (data && !error) {
+        addToCart({
+          id: data.id,
+          name: data.cart_name || data.name,
+          price: data.price,
+          image: data.image_url || "/cropped-Genestac-Logo-1-300x300-removebg-preview.png",
+          category: "plan",
+          planId: data.id
+        });
+      }
+    } catch (err) {
+      console.error("Failed to fetch consultation plan", err);
+    }
+  };
 
   const gstPercentage = pricing?.gstPercentage ?? 0;
   const discountAmount = (subtotal * discountPercentage) / 100;
@@ -292,7 +330,7 @@ const CartPage = () => {
           </div>
 
           {/* Loading State */}
-          {loading ? (
+          {checkingAuth ? (
             <div className="flex justify-center py-16">
               <div className="animate-spin h-8 w-8 border-4 border-blue-500 border-t-transparent rounded-full" />
             </div>
@@ -310,40 +348,15 @@ const CartPage = () => {
                   </p>
                 </div>
                 <CartSummary
-                  items={items}
-                  onRemove={async (planId) => {
-                    const {
-                      data: { session },
-                    } = await supabase.auth.getSession();
-                    if (!session?.access_token) return;
-                    await fetch(`/api/cart?planId=${planId}`, {
-                      method: "DELETE",
-                      headers: {
-                        Authorization: `Bearer ${session.access_token}`,
-                      },
-                    });
-                    setItems((prev) =>
-                      prev.filter((i) => i.plan_id !== planId),
-                    );
-                  }}
-                  onClear={async () => {
-                    const {
-                      data: { session },
-                    } = await supabase.auth.getSession();
-                    if (!session?.access_token) return;
-                    await fetch("/api/cart", {
-                      method: "DELETE",
-                      headers: {
-                        Authorization: `Bearer ${session.access_token}`,
-                      },
-                    });
-                    setItems([]);
-                  }}
+                  items={cart}
+                  onRemove={(name) => removeFromCart(name)}
+                  onClear={() => clearCart()}
+                  onChangeQty={(idx, delta) => changeQty(idx, delta)}
                 />
               </section>
 
               {/* Right: Summary */}
-              {items.length > 0 ? (
+              {cart.length > 0 ? (
                 <aside className="bg-white border border-slate-100 rounded-3xl p-6 shadow--sm space-y-6 self-start">
                   <div>
                     <h2 className="text-base font-bold text-slate-800">
@@ -436,12 +449,55 @@ const CartPage = () => {
                     />
                   </div>
 
+                  
+                  {/* Prescription Section */}
+                  {requiresRx && (
+                    <div className="pt-2 border-t border-slate-100">
+                      <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-4">
+                        <h4 className="text-amber-800 font-bold text-xs uppercase tracking-wider mb-2 flex items-center gap-1">
+                          <ShieldCheck className="w-4 h-4" /> Prescription Required
+                        </h4>
+                        <p className="text-amber-700 text-xs mb-3">
+                          One or more items in your cart require a valid medical prescription.
+                        </p>
+                        
+                        {!hasFulfilledRx ? (
+                          <div className="flex flex-col gap-2">
+                            <label className="flex items-center justify-center gap-2 w-full bg-white border border-amber-300 text-amber-700 hover:bg-amber-100 px-4 py-2.5 rounded-lg text-sm font-semibold cursor-pointer transition">
+                              {isUploadingRx ? (
+                                <span className="animate-spin h-4 w-4 border-2 border-amber-700 border-t-transparent rounded-full" />
+                              ) : (
+                                <FileUp className="w-4 h-4" />
+                              )}
+                              {isUploadingRx ? "Uploading..." : "Upload Prescription"}
+                              <input type="file" className="hidden" accept="image/*,.pdf" onChange={handleFileUpload} disabled={isUploadingRx} />
+                            </label>
+                            
+                            <div className="text-center text-[10px] text-amber-600 font-semibold my-1">OR</div>
+                            
+                            <button onClick={handleBookConsultation} className="flex items-center justify-center gap-2 w-full bg-amber-600 hover:bg-amber-700 text-white px-4 py-2.5 rounded-lg text-sm font-semibold transition">
+                              <CalendarCheck className="w-4 h-4" /> Book Consultation
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="flex items-center justify-between bg-emerald-50 border border-emerald-200 text-emerald-700 px-3 py-2 rounded-lg text-xs font-bold">
+                            <div className="flex items-center gap-1.5">
+                              <Check className="w-4 h-4" /> 
+                              {prescriptionUrl ? "Prescription Uploaded" : "Consultation Booked"}
+                            </div>
+                            <button onClick={() => { setPrescriptionUrl(null); setBookingConsultation(false); }} className="text-emerald-600 hover:text-emerald-800 underline text-[10px]">Change</button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
                   {/* Payment Button */}
                   <div className="pt-2">
-                    {!pricing ? (
+                    {!pricing || !hasFulfilledRx ? (
                       <div className="w-full flex items-center justify-center gap-2 font-extrabold px-6 py-4 rounded-2xl bg-slate-100 text-slate-400 text-sm cursor-not-allowed">
                         <span className="animate-spin h-4 w-4 border-2 border-slate-400 border-t-transparent rounded-full" />
-                        Loading pricing…
+                        {!pricing ? "Loading pricing..." : "Prescription Required"}
                       </div>
                     ) : (
                       <RazorpayCheckout
@@ -450,12 +506,15 @@ const CartPage = () => {
                         discountAmount={Math.round(discountAmount * 100)}
                         gstPercentage={gstPercentage}
                         taxAmount={gstAmount}
-                        planName={planName}
+                        planName={planName} // used for single-plan backwards compatibility where needed
                         planId={selectedPlanId}
                         variantId={selectedVariantId}
                         prefill={{ email: userEmail }}
                         couponId={couponId ?? undefined}
                         shippingAddressId={selectedAddressId}
+                        items={cart}
+                        prescriptionUrl={prescriptionUrl}
+                        needsConsultation={bookingConsultation}
                       />
                     )}
                     <p className="mt-3 flex items-center justify-center gap-1.5 text-xs text-slate-700 font-semibold">
