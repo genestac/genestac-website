@@ -5,8 +5,8 @@ export default function robots(): MetadataRoute.Robots {
     rules: {
       userAgent: '*',
       allow: '/',
-      disallow: ['/dashboard/', '/superadmin/', '/api/', '/form/'],
+      disallow: ['/dashboard/', '/superadmin/', '/api/', '/form/', '/auth/', '/update-password/'],
     },
-    sitemap: 'https://genestac.com/sitemap.xml',
+    sitemap: 'https://www.genestac.com/sitemap.xml',
   }
 }
