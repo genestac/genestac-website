@@ -71,8 +71,8 @@ export function ProductsClient({ initialProducts }: { initialProducts: any[] }) 
     <div
       style={{
         fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif",
-        color: "#1f2937",
-        background: "#ffffff",
+        color: "#111827",
+        background: "#fafafb",
         WebkitFontSmoothing: "antialiased",
       }}
     >
@@ -83,10 +83,10 @@ export function ProductsClient({ initialProducts }: { initialProducts: any[] }) 
           alignItems: "center",
           gap: "14px",
           padding: "14px 32px",
-          paddingTop: "96px",
+          paddingTop: "15px",
           borderBottom: "1px solid #e5e7eb",
           flexWrap: "wrap" as const,
-          background: "#fff",
+          background: "#ffffff",
         }}
       >
         <div
@@ -96,11 +96,11 @@ export function ProductsClient({ initialProducts }: { initialProducts: any[] }) 
             display: "flex",
             alignItems: "center",
             gap: "10px",
-            background: "#fafbfc",
+            background: "#f9fafb",
             border: "1px solid #e5e7eb",
             borderRadius: "8px",
             padding: "10px 14px",
-            color: "#8a94a6",
+            color: "#6b7280",
             fontSize: "14.5px",
           }}
         >
@@ -118,7 +118,7 @@ export function ProductsClient({ initialProducts }: { initialProducts: any[] }) 
               outline: "none",
               background: "transparent",
               fontSize: "14.5px",
-              color: "#1f2937",
+              color: "#111827",
             }}
           />
         </div>
@@ -130,7 +130,7 @@ export function ProductsClient({ initialProducts }: { initialProducts: any[] }) 
             gap: "8px",
             fontSize: "13.5px",
             fontWeight: 600,
-            color: "#1f2937",
+            color: "#4b5563",
             whiteSpace: "nowrap" as const,
           }}
         >
@@ -139,7 +139,7 @@ export function ProductsClient({ initialProducts }: { initialProducts: any[] }) 
 
         <button
           style={{
-            background: "#0ea5e9",
+            background: "linear-gradient(135deg, #10b981 0%, #059669 100%)",
             color: "#fff",
             border: "none",
             borderRadius: "8px",
@@ -149,8 +149,8 @@ export function ProductsClient({ initialProducts }: { initialProducts: any[] }) 
             cursor: "pointer",
             whiteSpace: "nowrap" as const,
           }}
-          onMouseEnter={(e) => (e.currentTarget.style.background = "#0284c7")}
-          onMouseLeave={(e) => (e.currentTarget.style.background = "#0ea5e9")}
+          onMouseEnter={(e) => (e.currentTarget.style.background = "linear-gradient(135deg, #059669 0%, #047857 100%)")}
+          onMouseLeave={(e) => (e.currentTarget.style.background = "linear-gradient(135deg, #10b981 0%, #059669 100%)")}
         >
           Quick Enquiry
         </button>
@@ -158,6 +158,7 @@ export function ProductsClient({ initialProducts }: { initialProducts: any[] }) 
 
       {/* ── Category strip ──────────────────────────────────────────────────── */}
       <div
+        className="mobile-category-strip"
         style={{
           display: "flex",
           gap: "28px",
@@ -166,7 +167,7 @@ export function ProductsClient({ initialProducts }: { initialProducts: any[] }) 
           fontSize: "14px",
           fontWeight: 600,
           overflowX: "auto" as const,
-          background: "#fff",
+          background: "#ffffff",
         }}
       >
         <button
@@ -181,8 +182,8 @@ export function ProductsClient({ initialProducts }: { initialProducts: any[] }) 
             cursor: "pointer",
             fontSize: "14px",
             fontWeight: activeCategory === "All Products" ? 700 : 600,
-            color: activeCategory === "All Products" ? "#0ea5e9" : "#1f2937",
-            borderBottom: activeCategory === "All Products" ? "2px solid #0ea5e9" : "2px solid transparent",
+            color: activeCategory === "All Products" ? "#10b981" : "#1f2937",
+            borderBottom: activeCategory === "All Products" ? "2px solid #10b981" : "2px solid transparent",
             paddingBottom: "4px",
           }}
         >
@@ -202,8 +203,8 @@ export function ProductsClient({ initialProducts }: { initialProducts: any[] }) 
               cursor: "pointer",
               fontSize: "14px",
               fontWeight: activeCategory === cat ? 700 : 600,
-              color: activeCategory === cat ? "#0ea5e9" : "#1f2937",
-              borderBottom: activeCategory === cat ? "2px solid #0ea5e9" : "2px solid transparent",
+              color: activeCategory === cat ? "#10b981" : "#1f2937",
+              borderBottom: activeCategory === cat ? "2px solid #10b981" : "2px solid transparent",
               paddingBottom: "4px",
             }}
           >
@@ -221,7 +222,7 @@ export function ProductsClient({ initialProducts }: { initialProducts: any[] }) 
             width: "280px",
             flexShrink: 0,
             borderRight: "1px solid #e5e7eb",
-            background: "#fafbfc",
+            background: "#f9fafb",
             minHeight: "100vh",
           }}
           className="products-sidebar"
@@ -242,7 +243,7 @@ export function ProductsClient({ initialProducts }: { initialProducts: any[] }) 
               <span>Categories</span>
               <span
                 style={{
-                  color: "#0ea5e9",
+                  color: "#6b7280",
                   fontSize: "18px",
                   fontWeight: 400,
                   lineHeight: 1,
@@ -271,13 +272,13 @@ export function ProductsClient({ initialProducts }: { initialProducts: any[] }) 
                     textAlign: "left" as const,
                     cursor: "pointer",
                     borderLeft: activeCategory === "All Products"
-                      ? "3px solid #0ea5e9"
+                      ? "3px solid #10b981"
                       : "3px solid transparent",
                   }}
                   onMouseEnter={(e) => {
                     if (activeCategory !== "All Products") {
-                      e.currentTarget.style.color = "#0ea5e9";
-                      e.currentTarget.style.background = "#fff";
+                      e.currentTarget.style.color = "#111827";
+                      e.currentTarget.style.background = "#e5e7eb";
                     }
                   }}
                   onMouseLeave={(e) => {
@@ -305,13 +306,13 @@ export function ProductsClient({ initialProducts }: { initialProducts: any[] }) 
                         textAlign: "left" as const,
                         cursor: "pointer",
                         borderLeft: isActive
-                          ? "3px solid #0ea5e9"
+                          ? "3px solid #10b981"
                           : "3px solid transparent",
                       }}
                       onMouseEnter={(e) => {
                         if (!isActive) {
-                          e.currentTarget.style.color = "#0ea5e9";
-                          e.currentTarget.style.background = "#fff";
+                          e.currentTarget.style.color = "#111827";
+                          e.currentTarget.style.background = "#e5e7eb";
                         }
                       }}
                       onMouseLeave={(e) => {
@@ -357,9 +358,9 @@ export function ProductsClient({ initialProducts }: { initialProducts: any[] }) 
                 display: "flex",
                 alignItems: "center",
                 gap: "8px",
-                background: "#fff4e5",
-                border: "1px solid #ffdca8",
-                color: "#a5580a",
+                background: "#fef3c7",
+                border: "1px solid #fde68a",
+                color: "#92400e",
                 fontSize: "12.5px",
                 fontWeight: 600,
                 padding: "8px 14px",
@@ -383,18 +384,12 @@ export function ProductsClient({ initialProducts }: { initialProducts: any[] }) 
             Explore our practitioner-grade peptides and wellness compounds — all manufactured to 99%+ purity and
             third-party tested. Products are for research and clinical use under qualified supervision.
             {filtered.length > 0 && (
-              <> &nbsp;<strong style={{ color: "#1f2937" }}>{filtered.length} products</strong> found.</>
+              <> &nbsp;<strong style={{ color: "#111827" }}>{filtered.length} products</strong> found.</>
             )}
           </p>
 
           {filtered.length === 0 && (
-            <div
-              style={{
-                textAlign: "center" as const,
-                padding: "60px 20px",
-                color: "#8a94a6",
-              }}
-            >
+            <div style={{ textAlign: "center" as const, padding: "60px 20px", color: "#6b7280" }}>
               <div style={{ fontSize: "40px", marginBottom: "12px" }}>🔍</div>
               <p style={{ fontWeight: 600, fontSize: "16px" }}>No products found</p>
               <p style={{ fontSize: "14px", marginTop: "6px" }}>
@@ -404,8 +399,8 @@ export function ProductsClient({ initialProducts }: { initialProducts: any[] }) 
                 onClick={() => { setSearchQuery(""); setActiveCategory("All Products"); }}
                 style={{
                   marginTop: "16px",
-                  background: "#0ea5e9",
-                  color: "#fff",
+                  background: "#f3f4f6",
+                  color: "#111827",
                   border: "none",
                   borderRadius: "7px",
                   padding: "9px 20px",
@@ -441,23 +436,25 @@ export function ProductsClient({ initialProducts }: { initialProducts: any[] }) 
                   key={p.id}
                   style={{
                     border: "1px solid #e5e7eb",
-                    borderRadius: "10px",
+                    borderRadius: "16px",
                     padding: "18px",
                     display: "flex",
                     gap: "16px",
-                    transition: "box-shadow 0.15s ease, transform 0.15s ease",
-                    background: "#fff",
+                    transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+                    background: "#ffffff",
                     position: "relative" as const,
                     textDecoration: "none",
                     color: "inherit"
                   }}
                   onMouseEnter={(e) => {
-                    e.currentTarget.style.boxShadow = "0 6px 20px rgba(0,0,0,.07)";
-                    e.currentTarget.style.transform = "translateY(-1px)";
+                    e.currentTarget.style.boxShadow = "0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)";
+                    e.currentTarget.style.transform = "translateY(-4px) scale(1.02)";
+                    e.currentTarget.style.borderColor = "#10b981";
                   }}
                   onMouseLeave={(e) => {
                     e.currentTarget.style.boxShadow = "none";
-                    e.currentTarget.style.transform = "translateY(0)";
+                    e.currentTarget.style.transform = "translateY(0) scale(1)";
+                    e.currentTarget.style.borderColor = "#e5e7eb";
                   }}
                 >
                   {discountPct > 0 && (
@@ -466,15 +463,17 @@ export function ProductsClient({ initialProducts }: { initialProducts: any[] }) 
                         position: "absolute" as const,
                         top: "10px",
                         right: "10px",
-                        background: "#fee2e2",
-                        color: "#dc2626",
-                        fontSize: "10px",
+                        background: "linear-gradient(135deg, #ef4444 0%, #dc2626 100%)",
+                        color: "#ffffff",
+                        fontSize: "11px",
                         fontWeight: 800,
-                        padding: "2px 7px",
-                        borderRadius: "4px",
+                        padding: "4px 8px",
+                        borderRadius: "6px",
                         letterSpacing: "0.02em",
                         zIndex: 10,
+                        boxShadow: "0 4px 6px -1px rgba(239, 68, 68, 0.3)",
                       }}
+                      className="pulse-badge"
                     >
                       -{discountPct}%
                     </span>
@@ -487,7 +486,7 @@ export function ProductsClient({ initialProducts }: { initialProducts: any[] }) 
                       flexShrink: 0,
                       borderRadius: "8px",
                       overflow: "hidden",
-                      background: "#f2f4f7",
+                      background: "#f3f4f6",
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "center",
@@ -565,7 +564,7 @@ export function ProductsClient({ initialProducts }: { initialProducts: any[] }) 
                       <div
                         style={{
                           fontSize: "13px",
-                          color: "#8a94a6",
+                          color: "#6b7280",
                           marginTop: "2px",
                           lineHeight: 1.4,
                           display: "-webkit-box",
@@ -593,7 +592,7 @@ export function ProductsClient({ initialProducts }: { initialProducts: any[] }) 
                         <span
                           style={{
                             fontSize: "13px",
-                            color: "#8a94a6",
+                            color: "#9ca3af",
                             textDecoration: "line-through",
                           }}
                         >
@@ -608,7 +607,7 @@ export function ProductsClient({ initialProducts }: { initialProducts: any[] }) 
                           onClick={(e) => handleAddToCart(e, p)}
                           style={{
                             width: "100%",
-                            background: isAdded ? "#1fa564" : "#0ea5e9",
+                            background: isAdded ? "#047857" : "linear-gradient(135deg, #10b981 0%, #059669 100%)",
                             color: "#fff",
                             border: "none",
                             borderRadius: "7px",
@@ -627,8 +626,8 @@ export function ProductsClient({ initialProducts }: { initialProducts: any[] }) 
                           disabled
                           style={{
                             width: "100%",
-                            background: "#f1f2f4",
-                            color: "#8a94a6",
+                            background: "#f3f4f6",
+                            color: "#9ca3af",
                             border: "none",
                             borderRadius: "7px",
                             padding: "9px 0",
@@ -651,6 +650,9 @@ export function ProductsClient({ initialProducts }: { initialProducts: any[] }) 
       </div>
 
       <style>{`
+        @media (min-width: 981px) {
+          .mobile-category-strip { display: none !important; }
+        }
         @media (max-width: 980px) {
           .products-sidebar { display: none !important; }
           .products-grid { grid-template-columns: 1fr !important; }
@@ -660,6 +662,13 @@ export function ProductsClient({ initialProducts }: { initialProducts: any[] }) 
           .products-grid > div > div:first-child {
             width: 100% !important; height: 140px !important;
           }
+        }
+        @keyframes pulseSoft {
+          0%, 100% { transform: scale(1); }
+          50% { transform: scale(1.05); }
+        }
+        .pulse-badge {
+          animation: pulseSoft 2s infinite ease-in-out;
         }
       `}</style>
     </div>

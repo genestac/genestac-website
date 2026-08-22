@@ -2,7 +2,7 @@ import { MetadataRoute } from 'next'
 import { supabase } from "@/lib/supabase"
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const baseUrl = 'https://genestac.com'
+  const baseUrl = 'https://www.genestac.com'
   
   // Fetch dynamic blog routes
   const { data: blogs } = await supabase
@@ -60,5 +60,18 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: route === '' ? 1 : 0.8,
   }))
 
-  return [...staticRoutes, ...blogUrls]
+  // Fetch dynamic product routes
+  const { data: products } = await supabase
+    .from('inventory')
+    .select('slug, id, updated_at')
+    .not('slug', 'is', null)
+
+  const productUrls = (products || []).map((product) => ({
+    url: `${baseUrl}/products/${product.slug || product.id}`,
+    lastModified: new Date(product.updated_at || new Date()),
+    changeFrequency: 'weekly' as const,
+    priority: 0.8,
+  }))
+
+  return [...staticRoutes, ...blogUrls, ...productUrls]
 }

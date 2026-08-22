@@ -1,4 +1,8 @@
 "use client";
+// Note: noindex for /dashboard/* is enforced via robots.txt disallow.
+// Since this is a "use client" layout, Next.js does not allow metadata exports here.
+// The robots.txt rule is sufficient: disallow: ['/dashboard/']
+
 
 import { useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
