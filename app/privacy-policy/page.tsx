@@ -187,23 +187,7 @@ export default function PrivacyPolicyPage() {
         </div>
       </section>
 
-      {/* ── CTA ── */}
-      <section className="py-16 bg-gradient-to-br from-[#001f3f] to-[#00305f] text-white">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center space-y-6">
-          <h2 className="text-2xl sm:text-3xl font-black">Questions About Your Privacy?</h2>
-          <p className="text-slate-300 max-w-xl mx-auto">
-            Reach out to our clinical team at <strong className="text-[#F5E6CC]">info@genestac.com</strong> or call <strong className="text-[#F5E6CC]">+91 9971114121</strong>.
-          </p>
-          <div className="flex flex-wrap justify-center gap-4 pt-2">
-            <Link href="/contact-us" className="inline-flex items-center justify-center gap-2 rounded-full bg-[#F5E6CC] px-8 py-4 text-sm font-extrabold text-[#001f3f] hover:bg-white transition-all shadow-lg">
-              Contact Us <ArrowRight className="w-4 h-4" />
-            </Link>
-            <Link href="/" className="inline-flex items-center justify-center rounded-full border border-white/30 bg-white/10 px-8 py-4 text-sm font-bold text-white hover:bg-white/20 transition-all">
-              ← Back to Home
-            </Link>
-          </div>
-        </div>
-      </section>
+      
     </main>
   );
 }
