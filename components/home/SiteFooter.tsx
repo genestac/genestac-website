@@ -1,5 +1,6 @@
 "use client";
 import React from "react";
+import Link from "next/link";
 import AppointmentButton from "@/components/AppointmentButton";
 import WhatsAppButton from "@/components/WhatsAppButton";
 
@@ -121,9 +122,9 @@ export const SiteFooter: React.FC = () => (
       <div className="border-t border-gray-800 mt-12 pt-8 flex flex-col md:flex-row justify-between items-center gap-4">
         <p className="text-sm text-gray-400">© 2026 Genestac Therapeutics. All rights reserved.</p>
         <div className="flex space-x-4 text-sm text-gray-400">
-          <a href="#" className="hover:text-white transition-colors">Privacy Policy</a>
+          <Link href="/privacy-policy" className="hover:text-white transition-colors">Privacy Policy</Link>
           <span>|</span>
-          <a href="#" className="hover:text-white transition-colors">Terms &amp; Conditions</a>
+          <Link href="/terms-conditions" className="hover:text-white transition-colors">Terms &amp; Conditions</Link>
         </div>
       </div>
     </div>

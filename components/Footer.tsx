@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import Link from "next/link";
 import { useModals } from "@/context/ModalContext";
 import { Mail, Phone, MapPin, CheckCircle } from "lucide-react";
 
@@ -63,18 +63,18 @@ export const Footer: React.FC = () => {
         <div className="flex flex-col md:flex-row justify-between items-center text-xs uppercase tracking-widest font-extrabold pt-2 text-brand-200/60">
           <p className="mb-4 md:mb-0">© 2026 genestac. All rights reserved.</p>
           <div className="flex flex-wrap justify-center gap-6">
-            <button
-              onClick={() => setTermsOpen(true)}
+            <Link
+              href="/terms-conditions"
               className="hover:text-white transition-colors cursor-pointer"
             >
-              Terms & Conditions
-            </button>
-            <button
-              onClick={() => setPrivacyOpen(true)}
+              Terms &amp; Conditions
+            </Link>
+            <Link
+              href="/privacy-policy"
               className="hover:text-white transition-colors cursor-pointer"
             >
               Privacy Policy
-            </button>
+            </Link>
            
           </div>
         </div>

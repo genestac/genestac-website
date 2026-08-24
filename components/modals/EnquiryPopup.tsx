@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import Link from "next/link";
 import { useModals } from "@/context/ModalContext";
 import { X, MessageSquare, Check } from "lucide-react";
 import { supabase } from "@/lib/supabase"; // ✅ use your existing supabase client
@@ -153,9 +154,9 @@ export const EnquiryPopup: React.FC = () => {
 
             <p className="text-[10px] text-center text-slate-400 mt-6 leading-relaxed">
               By submitting you agree to our{" "}
-              <a href="#" className="underline hover:text-slate-600">
+              <Link href="/privacy-policy" className="underline hover:text-slate-600">
                 Privacy Policy
-              </a>
+              </Link>
               . We respect your privacy.
             </p>
           </>
