@@ -125,6 +125,8 @@ export const SiteFooter: React.FC = () => (
           <Link href="/privacy-policy" className="hover:text-white transition-colors">Privacy Policy</Link>
           <span>|</span>
           <Link href="/terms-conditions" className="hover:text-white transition-colors">Terms &amp; Conditions</Link>
+          <span>|</span>
+          <Link href="/delete-account" className="hover:text-red-400 transition-colors">Delete Account</Link>
         </div>
       </div>
     </div>

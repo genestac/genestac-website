@@ -8,6 +8,7 @@ import { toast } from "react-hot-toast";
 import {
   Activity,
   AlertCircle,
+  AlertTriangle,
   CheckCircle,
   ChevronDown,
   ChevronUp,
@@ -17,9 +18,12 @@ import {
   Home,
   Moon,
   Save,
+  ShieldAlert,
   ShoppingCart,
+  Trash2,
   UserRound,
   Utensils,
+  X,
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 
@@ -379,6 +383,10 @@ export default function Page() {
     text: string;
   } | null>(null);
 
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteConfirmInput, setDeleteConfirmInput] = useState("");
+
   useEffect(() => {
     const fetchCartCount = async () => {
       const { data: { session } } = await supabase.auth.getSession();
@@ -522,6 +530,47 @@ export default function Page() {
   const handleSignOut = async () => {
     await supabase.auth.signOut();
     router.push("/");
+  };
+
+  const handleDeleteAccount = async () => {
+    if (deleteConfirmInput.trim().toUpperCase() !== "DELETE") {
+      toast.error('Please type "DELETE" to confirm account deletion.');
+      return;
+    }
+
+    setIsDeleting(true);
+    try {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      const token = session?.access_token;
+
+      const res = await fetch("/api/auth/delete-account", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ token, userId: user?.id }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to delete account.");
+      }
+
+      await supabase.auth.signOut();
+      toast.success("Your account and data have been permanently deleted.");
+      setIsDeleteModalOpen(false);
+      router.push("/");
+    } catch (err: any) {
+      console.error("Delete account error:", err);
+      toast.error(
+        err.message || "Failed to delete account. Please contact support."
+      );
+    } finally {
+      setIsDeleting(false);
+    }
   };
 
   const handleSave = async (event: React.FormEvent<HTMLFormElement>) => {
@@ -680,7 +729,8 @@ export default function Page() {
   }
 
   return (
-    <div className="flex min-w-0 flex-1 flex-col">
+    <>
+      <div className="flex min-w-0 flex-1 flex-col">
         <header className="sticky top-0 z-30 flex min-h-16 flex-col gap-3 border-b border-slate-200 bg-white/90 px-4 py-3 shadow-sm backdrop-blur md:flex-row md:items-center md:justify-between md:px-6">
           <div className="flex w-full flex-col gap-3 md:w-auto md:flex-row md:items-center">
             <div>
@@ -891,8 +941,98 @@ export default function Page() {
                 </button>
               </div>
             </form>
+
+            {/* Danger Zone */}
+            <section id="danger-zone" className="mt-8 rounded-2xl border border-rose-200 bg-rose-50/40 p-5 md:p-6">
+              <div className="flex items-start justify-between gap-4 flex-wrap">
+                <div className="flex items-start gap-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-rose-100 text-rose-700 flex-shrink-0">
+                    <Trash2 className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-rose-950">Danger Zone — Account Deletion</h3>
+                    <p className="mt-1 text-sm leading-relaxed text-rose-700/90 max-w-xl">
+                      Permanently remove your Genestac profile, login credentials, and saved health data. This action is immediate and cannot be undone.
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setDeleteConfirmInput("");
+                    setIsDeleteModalOpen(true);
+                  }}
+                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-rose-600 px-5 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-rose-700"
+                >
+                  <Trash2 className="h-4 w-4" />
+                  Delete Account
+                </button>
+              </div>
+            </section>
           </div>
         </main>
       </div>
+
+      {/* Account Deletion Confirmation Modal */}
+      {isDeleteModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl border border-slate-100 relative animate-in fade-in zoom-in duration-150">
+            <button
+              onClick={() => setIsDeleteModalOpen(false)}
+              className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 rounded-full p-1 transition"
+            >
+              <X className="h-5 w-5" />
+            </button>
+
+            <div className="flex items-center gap-3 text-rose-600 mb-4">
+              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-rose-100 text-rose-600">
+                <ShieldAlert className="h-6 w-6" />
+              </div>
+              <div>
+                <h3 className="text-lg font-extrabold text-slate-900">Delete Account</h3>
+                <p className="text-xs text-rose-600 font-semibold uppercase tracking-wider">Irreversible Action</p>
+              </div>
+            </div>
+
+            <p className="text-sm text-slate-600 leading-relaxed mb-4">
+              Are you sure you want to permanently delete your Genestac account? This will remove all your personal profile information, saved intake forms, and authentication access.
+            </p>
+
+            <div className="mb-5 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800 flex items-start gap-2">
+              <AlertTriangle className="h-4 w-4 text-amber-600 flex-shrink-0 mt-0.5" />
+              <span>To confirm, please type <strong className="font-bold text-slate-900">DELETE</strong> in the box below:</span>
+            </div>
+
+            <input
+              type="text"
+              value={deleteConfirmInput}
+              onChange={(e) => setDeleteConfirmInput(e.target.value)}
+              placeholder="Type DELETE to confirm"
+              className="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-medium focus:border-rose-500 focus:outline-none focus:ring-2 focus:ring-rose-500/20 mb-5"
+            />
+
+            <div className="flex items-center justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setIsDeleteModalOpen(false)}
+                disabled={isDeleting}
+                className="rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-bold text-slate-700 hover:bg-slate-50 transition"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleDeleteAccount}
+                disabled={isDeleting || deleteConfirmInput.trim().toUpperCase() !== "DELETE"}
+                className="inline-flex items-center justify-center gap-2 rounded-xl bg-rose-600 px-5 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-rose-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <Trash2 className="h-4 w-4" />
+                {isDeleting ? "Deleting..." : "Permanently Delete"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 }

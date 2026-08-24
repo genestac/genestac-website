@@ -23,6 +23,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     '/blogs',
     '/chronic-pain-treatment',
     '/contact-us',
+    '/delete-account',
     '/faq',
     '/hair-treatment',
     '/joint-sports-injury-treatment',
