@@ -39,7 +39,7 @@ export default function AboutUsPage() {
                 Our Vision & Mission
               </h2>
               <p className="text-slate-600 leading-8">
-                At Genestac Therapeutics, we believe that the human body possesses an extraordinary capacity to heal itself when supported by state-of-the-art medical science. For over 15 years, our medical practitioners and clinical researchers have committed to delivering cellular and regenerative therapies that offer a long-term alternative to invasive surgery.
+                At Genestac Therapeutics, we believe that the human body possesses an extraordinary capacity to heal itself when supported by state-of-the-art medical science. For over 20+ years, our medical practitioners and clinical researchers have committed to delivering cellular and regenerative therapies that offer a long-term alternative to invasive surgery.
               </p>
               <div className="space-y-4 pt-2">
                 <div className="flex gap-4">
@@ -62,13 +62,17 @@ export default function AboutUsPage() {
                 </div>
               </div>
             </div>
-            <div className="relative rounded-[2rem] overflow-hidden border border-slate-100 shadow-2xl">
-              <img
-                src="https://genestac.com/wp-content/uploads/2025/05/optimized_new_image.jpg"
-                alt="Genestac Clinic"
-                className="w-full h-[400px] object-cover"
+            <div className="rounded-[2rem] overflow-hidden border border-slate-100 shadow-2xl">
+              <iframe
+                title="Genestac Therapeutics Location"
+                src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3508.949744879267!2d77.05541987499614!3d28.43437679183437!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x390d18bfccd4e1b3%3A0x65f7e7453c0dfe66!2sUnitech%20Business%20Zone%2C%20Nirvana%20Country%2C%20Sector%2050%2C%20Gurugram%2C%20Haryana%20122018!5e0!3m2!1sen!2sin!4v1719298000000!5m2!1sen!2sin"
+                width="100%"
+                height="400"
+                style={{ border: 0 }}
+                allowFullScreen
+                loading="lazy"
+                referrerPolicy="no-referrer-when-downgrade"
               />
-              <div className="absolute inset-0 bg-[#001f3f]/10" />
             </div>
           </div>
         </div>
