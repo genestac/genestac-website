@@ -125,7 +125,7 @@ export const HeroMain: React.FC = () => {
           {/* Buttons */}
           <div className="flex flex-wrap lg:flex-nowrap items-center gap-3 sm:gap-4 mb-12">
             <AppointmentButton className="w-full sm:w-auto text-center px-5 sm:px-7 lg:px-8 py-3.5 rounded-[2rem] bg-[#F5E6CC] text-[#001f3f] font-extrabold text-[0.9rem] sm:text-[1.05rem] hover:-translate-y-1.5 hover:scale-105 hover:bg-white hover:shadow-[0_12px_30px_rgba(245,230,204,0.4)] transition-all duration-300 ease-out cursor-pointer">
-              Book a Free Appointment
+              Book Consultation — ₹200
             </AppointmentButton>
             <WhatsAppButton
               phone="919289460045"

@@ -3,6 +3,7 @@
 import { useState, useEffect, FormEvent } from "react";
 import { X, Loader2, CheckCircle } from "lucide-react";
 import { supabase } from "@/lib/supabase";
+import { usePathname } from "next/navigation";
 
 export default function LeadCapturePopup() {
   const [show, setShow] = useState(false);
@@ -13,6 +14,7 @@ export default function LeadCapturePopup() {
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState("");
+  const pathname = usePathname();
 
   useEffect(() => {
     const checkAndSchedule = async () => {
@@ -24,11 +26,13 @@ export default function LeadCapturePopup() {
       const dismissed = sessionStorage.getItem("lead_popup_dismissed");
       if (dismissed) return;
 
+      if (pathname === "/book-consultation") return;
+
       const timer = setTimeout(() => setShow(true), 5000);
       return () => clearTimeout(timer);
     };
     checkAndSchedule();
-  }, []);
+  }, [pathname]);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
