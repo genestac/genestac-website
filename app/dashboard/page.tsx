@@ -4,6 +4,14 @@ import { useEffect, useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { toast } from "react-hot-toast";
+import CelebrationOverlay from "@/components/games/CelebrationOverlay";
+import {
+  checkUnlocks,
+  checkUnlocksAll,
+  createInitialProgress,
+  type UserProgress,
+} from "@/lib/checkUnlocks";
+import { LEVELS, type LevelSeed } from "@/data/journey_seed";
 import {
   AreaChart,
   Area,
@@ -38,8 +46,10 @@ import {
   CheckSquare,
   Check,
   Footprints,
+  Trash2,
 } from "lucide-react";
 import type { User as SupabaseUser } from "@supabase/supabase-js";
+import { notifyDataLogged } from "@/lib/assistantState";
 
 type WeightLog = {
   date: string;
@@ -53,7 +63,6 @@ type StepLog = {
   date: string;
   steps: number;
 };
-
 
 type MealLog = {
   id: string;
@@ -144,6 +153,7 @@ export default function DashboardPage() {
   const [waterToday, setWaterToday] = useState<number>(0); // in Liters
   const [savingWater, setSavingWater] = useState(false);
   const [isWaterHistoryModalOpen, setIsWaterHistoryModalOpen] = useState(false);
+  const [showWaterSplash, setShowWaterSplash] = useState(false);
 
   // Meal Recommendations State
   const [recommendations, setRecommendations] = useState<any[]>([]);
@@ -151,7 +161,10 @@ export default function DashboardPage() {
 
   // Sleep Tracker State
   const [sleepToday, setSleepToday] = useState<number>(7.0);
-  const [sleepAdvice, setSleepAdvice] = useState<{ targetHours: number; tip: string }>({
+  const [sleepAdvice, setSleepAdvice] = useState<{
+    targetHours: number;
+    tip: string;
+  }>({
     targetHours: 8.0,
     tip: "Aim for a consistent bedtime and keep your room cool and dark to improve deep sleep cycles.",
   });
@@ -167,19 +180,138 @@ export default function DashboardPage() {
   const [stepsLogsState, setStepsLogsState] = useState<StepLog[]>([]);
   const [waterLogsState, setWaterLogsState] = useState<WaterLog[]>([]);
   const [sleepLogsState, setSleepLogsState] = useState<SleepLog[]>([]);
-  const [measurementLogsState, setMeasurementLogsState] = useState<MeasurementLog[]>([]);
+  const [measurementLogsState, setMeasurementLogsState] = useState<
+    MeasurementLog[]
+  >([]);
 
   // Manual Tracking State
-  const [measurements, setMeasurements] = useState({ waist: "", hips: "", chest: "" });
+  const [measurements, setMeasurements] = useState({
+    waist: "",
+    hips: "",
+    chest: "",
+  });
   const [savingMeasurements, setSavingMeasurements] = useState(false);
-  const [isMeasurementsHistoryModalOpen, setIsMeasurementsHistoryModalOpen] = useState(false);
+  const [isMeasurementsHistoryModalOpen, setIsMeasurementsHistoryModalOpen] =
+    useState(false);
   const [habits, setHabits] = useState({
     vitamins: false,
     walk: false,
     noSugar: false,
   });
   const [savingHabits, setSavingHabits] = useState(false);
-  const [isHabitsHistoryModalOpen, setIsHabitsHistoryModalOpen] = useState(false);
+  const [isHabitsHistoryModalOpen, setIsHabitsHistoryModalOpen] =
+    useState(false);
+
+  // Journey Game Progress & Level Unlock Celebration State
+  const [userProgress, setUserProgress] = useState<UserProgress>(
+    createInitialProgress(),
+  );
+  const activeJourneyLevel = useMemo(() => {
+    const unlocked = userProgress.unlocked_level_ids || [1];
+    const completed = userProgress.completed_level_ids || [];
+    const activeId =
+      unlocked.find((id) => !completed.includes(id)) ||
+      unlocked[unlocked.length - 1] ||
+      1;
+    return LEVELS.find((l) => l.id === activeId) || LEVELS[0];
+  }, [userProgress]);
+
+  const [celebration, setCelebration] = useState<{
+    visible: boolean;
+    level: LevelSeed | null;
+    xp: number;
+  }>({ visible: false, level: null, xp: 0 });
+
+  const checkAndTriggerCelebration = async (
+    updatedTrackingDataPartial: Record<string, any>,
+  ) => {
+    let currentProgress = userProgress;
+    const fullTrackingData = {
+      weightHistory: journey.history || [],
+      waterLogs: waterLogsState,
+      stepsLogs: stepsLogsState,
+      sleepLogs: sleepLogsState,
+      meals: journey.meals || [],
+      habitLogs: journey.habitLogs || [],
+      totalXp: currentProgress.total_xp,
+      ...updatedTrackingDataPartial,
+    };
+
+    // Loop: keep completing levels as long as the next active level's requirement is met.
+    // This handles XP checkpoints (like Early Bird at 85 XP) that auto-unlock after earning XP.
+    let celebrationLevel: typeof userProgress | null = null;
+    let celebrationXp = 0;
+    let anyChanged = false;
+
+    // eslint-disable-next-line no-constant-condition
+    while (true) {
+      const result = checkUnlocks(currentProgress, {
+        ...fullTrackingData,
+        totalXp: currentProgress.total_xp,
+      });
+
+      if (!result.unlocked || !result.newCompletedIds || !result.newUnlockedIds)
+        break;
+
+      currentProgress = {
+        current_level_id:
+          result.newUnlockedIds[result.newUnlockedIds.length - 1] || 1,
+        total_xp: result.newTotalXp || currentProgress.total_xp,
+        unlocked_level_ids: result.newUnlockedIds,
+        completed_level_ids: result.newCompletedIds,
+      };
+      anyChanged = true;
+
+      // Show celebration for the first real level completed in this action
+      if (!celebrationLevel && result.level && (result.xpGained ?? 0) > 0) {
+        celebrationLevel = result.level as any;
+        celebrationXp = result.xpGained || 0;
+      }
+
+      if ((result.xpGained ?? 0) === 0) break; // sync-only update, break after updating currentProgress
+    }
+
+    if (anyChanged) {
+      setUserProgress(currentProgress);
+
+      if (celebrationLevel) {
+        setCelebration({
+          visible: true,
+          level: celebrationLevel as any,
+          xp: celebrationXp,
+        });
+      }
+
+      if (user && user.id !== "mock-user-7788") {
+        try {
+          const payload = {
+            user_id: user.id,
+            current_level_id: currentProgress.current_level_id,
+            total_xp: currentProgress.total_xp,
+            unlocked_level_ids: currentProgress.unlocked_level_ids,
+            completed_level_ids: currentProgress.completed_level_ids,
+            updated_at: new Date().toISOString(),
+          };
+          const { error: saveErr } = await supabase
+            .from("user_progress")
+            .upsert(payload, { onConflict: "user_id" });
+          if (saveErr) {
+            console.error("Failed to save user_progress to Supabase:", saveErr);
+            if (saveErr.code === "23503") {
+              await supabase
+                .from("user_progress")
+                .upsert(
+                  { ...payload, current_level_id: null },
+                  { onConflict: "user_id" },
+                );
+            }
+          }
+        } catch (e) {
+          console.error("Failed to save user_progress:", e);
+        }
+      }
+    }
+  };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -212,7 +344,9 @@ export default function DashboardPage() {
     const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME;
 
     if (!cloudName) {
-      console.warn("Cloudinary cloud name not set. Using local base64 fallback.");
+      console.warn(
+        "Cloudinary cloud name not set. Using local base64 fallback.",
+      );
       return new Promise((resolve) => {
         const reader = new FileReader();
         reader.onloadend = () => resolve(reader.result as string);
@@ -233,10 +367,13 @@ export default function DashboardPage() {
     formData.append("timestamp", timestamp);
     formData.append("signature", signature);
 
-    const res = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, {
-      method: "POST",
-      body: formData,
-    });
+    const res = await fetch(
+      `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`,
+      {
+        method: "POST",
+        body: formData,
+      },
+    );
 
     if (!res.ok) {
       const errData = await res.json().catch(() => ({}));
@@ -256,7 +393,6 @@ export default function DashboardPage() {
       }),
     };
   };
-
 
   const fetchRecommendations = async (mealsList: MealLog[]) => {
     setLoadingRecs(true);
@@ -300,11 +436,17 @@ export default function DashboardPage() {
     return [];
   };
 
-  const mergeLogsByDate = <T extends { date: string }>(primary: T[] = [], fallback: T[] = []): T[] => {
+  const mergeLogsByDate = <T extends { date: string }>(
+    primary: T[] = [],
+    fallback: T[] = [],
+  ): T[] => {
     const map = new Map<string, T>();
     const addLog = (item: T) => {
       if (!item || !item.date) return;
-      const dateKey = typeof item.date === "string" && item.date.includes("T") ? item.date.split("T")[0] : String(item.date);
+      const dateKey =
+        typeof item.date === "string" && item.date.includes("T")
+          ? item.date.split("T")[0]
+          : String(item.date);
       map.set(dateKey, item);
     };
 
@@ -325,7 +467,7 @@ export default function DashboardPage() {
       water_history?: WaterLog[];
       sleep_history?: SleepLog[];
       measurement_history?: MeasurementLog[];
-    }
+    },
   ) => {
     const { data: existing } = await supabase
       .from("user_plans")
@@ -342,12 +484,10 @@ export default function DashboardPage() {
         })
         .eq("id", existing.id);
     } else {
-      return await supabase
-        .from("user_plans")
-        .insert({
-          user_id: userId,
-          ...updates,
-        });
+      return await supabase.from("user_plans").insert({
+        user_id: userId,
+        ...updates,
+      });
     }
   };
 
@@ -357,7 +497,9 @@ export default function DashboardPage() {
 
     const todayStr = new Date().toISOString().split("T")[0];
     let newStepsLogs = [...stepsLogsState];
-    const existingIndex = newStepsLogs.findIndex((log) => log.date && log.date.split("T")[0] === todayStr);
+    const existingIndex = newStepsLogs.findIndex(
+      (log) => log.date && log.date.split("T")[0] === todayStr,
+    );
 
     let newCount = amount;
     if (existingIndex >= 0) {
@@ -373,6 +515,8 @@ export default function DashboardPage() {
       setStepsToday(newCount);
       setSavingSteps(false);
       toast.success("Steps logged successfully!");
+      checkAndTriggerCelebration({ stepsLogs: newStepsLogs });
+      notifyDataLogged();
     };
 
     const urlParams = new URLSearchParams(window.location.search);
@@ -381,7 +525,9 @@ export default function DashboardPage() {
       return;
     }
 
-    const { error } = await saveUserPlanData(user.id, { steps_history: newStepsLogs });
+    const { error } = await saveUserPlanData(user.id, {
+      steps_history: newStepsLogs,
+    });
     if (error) {
       console.error("Error saving steps to user_plans:", error);
       setSavingSteps(false);
@@ -397,7 +543,9 @@ export default function DashboardPage() {
 
     const todayStr = new Date().toISOString().split("T")[0];
     let newStepsLogs = [...stepsLogsState];
-    const existingIndex = newStepsLogs.findIndex((log) => log.date && log.date.split("T")[0] === todayStr);
+    const existingIndex = newStepsLogs.findIndex(
+      (log) => log.date && log.date.split("T")[0] === todayStr,
+    );
 
     if (existingIndex >= 0) {
       newStepsLogs[existingIndex] = { date: todayStr, steps: 0 };
@@ -408,6 +556,8 @@ export default function DashboardPage() {
       setStepsToday(0);
       setSavingSteps(false);
       toast.success("Steps reset.");
+      checkAndTriggerCelebration({ stepsLogs: newStepsLogs });
+      notifyDataLogged();
     };
 
     const urlParams = new URLSearchParams(window.location.search);
@@ -416,7 +566,9 @@ export default function DashboardPage() {
       return;
     }
 
-    const { error } = await saveUserPlanData(user.id, { steps_history: newStepsLogs });
+    const { error } = await saveUserPlanData(user.id, {
+      steps_history: newStepsLogs,
+    });
     if (error) {
       console.error("Error resetting steps in user_plans:", error);
       setSavingSteps(false);
@@ -427,44 +579,55 @@ export default function DashboardPage() {
   };
 
   const handleLogWater = async (amount: number) => {
-    if (!user) return;
+    const urlParams = new URLSearchParams(window.location.search);
+    const isBypass = urlParams.get("bypassAuth") === "true";
+    if (!user && !isBypass) return;
     setSavingWater(true);
-    
+
     const todayStr = new Date().toISOString().split("T")[0];
     let currentLogs = mergeLogsByDate(waterLogsState, journey.waterLogs || []);
     let newWaterLogs = [...currentLogs];
-    const existingIndex = newWaterLogs.findIndex(log => log.date && log.date.split("T")[0] === todayStr);
-    
+    const existingIndex = newWaterLogs.findIndex(
+      (log) => log.date && log.date.split("T")[0] === todayStr,
+    );
+
     let newAmount = amount;
     if (existingIndex >= 0) {
-      newAmount = parseFloat((newWaterLogs[existingIndex].amount + amount).toFixed(2));
+      newAmount = parseFloat(
+        (newWaterLogs[existingIndex].amount + amount).toFixed(2),
+      );
       if (newAmount < 0) newAmount = 0;
       newWaterLogs[existingIndex] = { date: todayStr, amount: newAmount };
     } else {
       if (newAmount < 0) newAmount = 0;
       newWaterLogs.push({ date: todayStr, amount: newAmount });
     }
-    
+
     const newJourney: WeightJourney = {
       ...journey,
-      waterLogs: newWaterLogs
+      waterLogs: newWaterLogs,
     };
 
-    const finishSave = () => {
+    const finishSave = async () => {
       setWaterLogsState(newWaterLogs);
       setJourney(newJourney);
       setWaterToday(newAmount);
       setSavingWater(false);
       toast.success("Water intake logged successfully!");
+      setShowWaterSplash(true);
+      setTimeout(() => setShowWaterSplash(false), 900);
+      await checkAndTriggerCelebration({ waterLogs: newWaterLogs });
+      notifyDataLogged();
     };
 
-    const urlParams = new URLSearchParams(window.location.search);
-    if (urlParams.get("bypassAuth") === "true") {
-      finishSave();
+    if (isBypass || !user) {
+      await finishSave();
       return;
     }
 
-    const { error } = await saveUserPlanData(user.id, { water_history: newWaterLogs });
+    const { error } = await saveUserPlanData(user.id, {
+      water_history: newWaterLogs,
+    });
     await supabase
       .from("users")
       .update({ weight_loss_journey: cleanJourneyForDb(newJourney) })
@@ -475,26 +638,30 @@ export default function DashboardPage() {
       setSavingWater(false);
       toast.error("Failed to save water intake.");
     } else {
-      finishSave();
+      await finishSave();
     }
   };
 
   const handleResetWater = async () => {
-    if (!user) return;
+    const urlParamsReset = new URLSearchParams(window.location.search);
+    const isBypass = urlParamsReset.get("bypassAuth") === "true";
+    if (!user && !isBypass) return;
     setSavingWater(true);
-    
+
     const todayStr = new Date().toISOString().split("T")[0];
     let currentLogs = mergeLogsByDate(waterLogsState, journey.waterLogs || []);
     let newWaterLogs = [...currentLogs];
-    const existingIndex = newWaterLogs.findIndex(log => log.date && log.date.split("T")[0] === todayStr);
-    
+    const existingIndex = newWaterLogs.findIndex(
+      (log) => log.date && log.date.split("T")[0] === todayStr,
+    );
+
     if (existingIndex >= 0) {
       newWaterLogs[existingIndex] = { date: todayStr, amount: 0 };
     }
-    
+
     const newJourney: WeightJourney = {
       ...journey,
-      waterLogs: newWaterLogs
+      waterLogs: newWaterLogs,
     };
 
     const finishSave = () => {
@@ -503,15 +670,17 @@ export default function DashboardPage() {
       setWaterToday(0);
       setSavingWater(false);
       toast.success("Water intake reset.");
+      notifyDataLogged();
     };
 
-    const urlParams = new URLSearchParams(window.location.search);
-    if (urlParams.get("bypassAuth") === "true") {
+    if (isBypass || !user) {
       finishSave();
       return;
     }
 
-    const { error } = await saveUserPlanData(user.id, { water_history: newWaterLogs });
+    const { error } = await saveUserPlanData(user.id, {
+      water_history: newWaterLogs,
+    });
     await supabase
       .from("users")
       .update({ weight_loss_journey: cleanJourneyForDb(newJourney) })
@@ -557,7 +726,9 @@ export default function DashboardPage() {
     const yesterdayStr = yesterday.toISOString().split("T")[0];
     let currentLogs = mergeLogsByDate(sleepLogsState, journey.sleepLogs || []);
     let newSleepLogs = [...currentLogs];
-    const existingIndex = newSleepLogs.findIndex((log) => log.date && log.date.split("T")[0] === yesterdayStr);
+    const existingIndex = newSleepLogs.findIndex(
+      (log) => log.date && log.date.split("T")[0] === yesterdayStr,
+    );
 
     if (existingIndex >= 0) {
       newSleepLogs[existingIndex] = { date: yesterdayStr, hours: sleepToday };
@@ -576,6 +747,8 @@ export default function DashboardPage() {
       setSavingSleep(false);
       toast.success("Sleep duration saved!");
       fetchSleepRecommendations(newSleepLogs);
+      checkAndTriggerCelebration({ sleepLogs: newSleepLogs });
+      notifyDataLogged();
     };
 
     const urlParams = new URLSearchParams(window.location.search);
@@ -584,7 +757,9 @@ export default function DashboardPage() {
       return;
     }
 
-    const { error } = await saveUserPlanData(user.id, { sleep_history: newSleepLogs });
+    const { error } = await saveUserPlanData(user.id, {
+      sleep_history: newSleepLogs,
+    });
     await supabase
       .from("users")
       .update({ weight_loss_journey: cleanJourneyForDb(newJourney) })
@@ -602,11 +777,16 @@ export default function DashboardPage() {
   const handleSaveMeasurements = async () => {
     if (!user) return;
     setSavingMeasurements(true);
-    
+
     const today = new Date().toISOString().split("T")[0];
-    let currentLogs = mergeLogsByDate(measurementLogsState, journey.measurements || []);
+    let currentLogs = mergeLogsByDate(
+      measurementLogsState,
+      journey.measurements || [],
+    );
     let newMeasurements = [...currentLogs];
-    const existingIndex = newMeasurements.findIndex((log) => log.date && log.date.split("T")[0] === today);
+    const existingIndex = newMeasurements.findIndex(
+      (log) => log.date && log.date.split("T")[0] === today,
+    );
 
     const log: MeasurementLog = {
       date: today,
@@ -621,13 +801,17 @@ export default function DashboardPage() {
       newMeasurements.push(log);
     }
 
-    const newJourney: WeightJourney = { ...journey, measurements: newMeasurements };
+    const newJourney: WeightJourney = {
+      ...journey,
+      measurements: newMeasurements,
+    };
 
     const finishSave = () => {
       setMeasurementLogsState(newMeasurements);
       setJourney(newJourney);
       setSavingMeasurements(false);
       toast.success("Measurements saved!");
+      notifyDataLogged();
     };
 
     const urlParams = new URLSearchParams(window.location.search);
@@ -636,7 +820,9 @@ export default function DashboardPage() {
       return;
     }
 
-    const { error } = await saveUserPlanData(user.id, { measurement_history: newMeasurements });
+    const { error } = await saveUserPlanData(user.id, {
+      measurement_history: newMeasurements,
+    });
     await supabase
       .from("users")
       .update({ weight_loss_journey: cleanJourneyForDb(newJourney) })
@@ -654,7 +840,7 @@ export default function DashboardPage() {
   const handleSaveHabits = async () => {
     if (!user) return;
     setSavingHabits(true);
-    
+
     const today = new Date().toISOString().split("T")[0];
     let newHabitLogs = [...(journey.habitLogs || [])];
     const existingIndex = newHabitLogs.findIndex((log) => log.date === today);
@@ -676,6 +862,8 @@ export default function DashboardPage() {
       setJourney(newJourney);
       setSavingHabits(false);
       toast.success("Habits logged!");
+      checkAndTriggerCelebration({ habitLogs: newHabitLogs });
+      notifyDataLogged();
     };
 
     const urlParams = new URLSearchParams(window.location.search);
@@ -710,7 +898,13 @@ export default function DashboardPage() {
         } as unknown as SupabaseUser;
 
         setUser(mockUser);
-        setJourney({ history: [] }); // Start empty for bypass too
+        setJourney({ history: [] });
+        setUserProgress({
+          current_level_id: 2,
+          total_xp: 20,
+          unlocked_level_ids: [1, 2],
+          completed_level_ids: [1],
+        });
         setWaterToday(0);
         setSleepToday(7.0);
         setLoading(false);
@@ -733,14 +927,28 @@ export default function DashboardPage() {
       // Fetch user_plans data (steps, water, sleep, measurements history)
       const { data: userPlan } = await supabase
         .from("user_plans")
-        .select("steps_history, water_history, sleep_history, measurement_history")
+        .select(
+          "steps_history, water_history, sleep_history, measurement_history",
+        )
         .eq("user_id", session.user.id)
         .maybeSingle();
 
-      const userPlanSteps: StepLog[] = extractLogsArray(userPlan?.steps_history, ["stepsLogs", "steps_history"]);
-      const userPlanWater: WaterLog[] = extractLogsArray(userPlan?.water_history, ["waterLogs", "water_history"]);
-      const userPlanSleep: SleepLog[] = extractLogsArray(userPlan?.sleep_history, ["sleepLogs", "sleep_history"]);
-      const userPlanMeasurements: MeasurementLog[] = extractLogsArray(userPlan?.measurement_history, ["measurementLogs", "measurements", "measurement_history"]);
+      const userPlanSteps: StepLog[] = extractLogsArray(
+        userPlan?.steps_history,
+        ["stepsLogs", "steps_history"],
+      );
+      const userPlanWater: WaterLog[] = extractLogsArray(
+        userPlan?.water_history,
+        ["waterLogs", "water_history"],
+      );
+      const userPlanSleep: SleepLog[] = extractLogsArray(
+        userPlan?.sleep_history,
+        ["sleepLogs", "sleep_history"],
+      );
+      const userPlanMeasurements: MeasurementLog[] = extractLogsArray(
+        userPlan?.measurement_history,
+        ["measurementLogs", "measurements", "measurement_history"],
+      );
 
       const { data, error } = await supabase
         .from("users")
@@ -748,20 +956,33 @@ export default function DashboardPage() {
         .eq("id", session.user.id)
         .maybeSingle();
 
-      const fetchedJourney = ((data && data.weight_loss_journey) ? data.weight_loss_journey : {}) as WeightJourney;
-      const normalizedHistory = (Array.isArray(fetchedJourney.history) ? fetchedJourney.history : []).map(entry => ({
+      const fetchedJourney = (
+        data && data.weight_loss_journey ? data.weight_loss_journey : {}
+      ) as WeightJourney;
+      const normalizedHistory = (
+        Array.isArray(fetchedJourney.history) ? fetchedJourney.history : []
+      ).map((entry) => ({
         ...entry,
         imageUrl: entry.image_url || entry.imageUrl,
       }));
 
-      const legacyWater = extractLogsArray(fetchedJourney.waterLogs, ["waterLogs"]);
-      const legacySleep = extractLogsArray(fetchedJourney.sleepLogs, ["sleepLogs"]);
-      const legacyMeasurements = extractLogsArray(fetchedJourney.measurements, ["measurements"]);
+      const legacyWater = extractLogsArray(fetchedJourney.waterLogs, [
+        "waterLogs",
+      ]);
+      const legacySleep = extractLogsArray(fetchedJourney.sleepLogs, [
+        "sleepLogs",
+      ]);
+      const legacyMeasurements = extractLogsArray(fetchedJourney.measurements, [
+        "measurements",
+      ]);
 
       // Combine / merge user_plans data with users weight_loss_journey data so no history is lost
       const finalWaterLogs = mergeLogsByDate(userPlanWater, legacyWater);
       const finalSleepLogs = mergeLogsByDate(userPlanSleep, legacySleep);
-      const finalMeasurementLogs = mergeLogsByDate(userPlanMeasurements, legacyMeasurements);
+      const finalMeasurementLogs = mergeLogsByDate(
+        userPlanMeasurements,
+        legacyMeasurements,
+      );
       const finalStepsLogs = userPlanSteps;
 
       setStepsLogsState(finalStepsLogs);
@@ -772,9 +993,7 @@ export default function DashboardPage() {
       setJourney({
         targetGoal: fetchedJourney.targetGoal,
         history: normalizedHistory,
-        meals: Array.isArray(fetchedJourney.meals)
-          ? fetchedJourney.meals
-          : [],
+        meals: Array.isArray(fetchedJourney.meals) ? fetchedJourney.meals : [],
         waterGoal: fetchedJourney.waterGoal,
         waterLogs: finalWaterLogs,
         sleepLogs: finalSleepLogs,
@@ -788,35 +1007,134 @@ export default function DashboardPage() {
         setTargetGoalInput(fetchedJourney.targetGoal.toString());
       }
 
+      // Fetch user_progress data from Supabase & silently evaluate level unlocks for existing data
+      let initialProgress: UserProgress = createInitialProgress();
+      try {
+        const { data: progressData } = await supabase
+          .from("user_progress")
+          .select("*")
+          .eq("user_id", session.user.id)
+          .maybeSingle();
+
+        if (progressData) {
+          initialProgress = {
+            current_level_id: progressData.current_level_id || 1,
+            total_xp: progressData.total_xp || 0,
+            unlocked_level_ids: Array.isArray(progressData.unlocked_level_ids)
+              ? progressData.unlocked_level_ids
+              : [1],
+            completed_level_ids: Array.isArray(progressData.completed_level_ids)
+              ? progressData.completed_level_ids
+              : [],
+          };
+        }
+      } catch (err) {
+        console.error("Error loading user_progress:", err);
+      }
+
+      // Perform silent unlock check on page load for historical logs (without triggering celebration modal)
+      const fullTrackingOnLoad = {
+        weightHistory: normalizedHistory,
+        waterLogs: finalWaterLogs,
+        stepsLogs: finalStepsLogs,
+        sleepLogs: finalSleepLogs,
+        meals: Array.isArray(fetchedJourney.meals) ? fetchedJourney.meals : [],
+        habitLogs: Array.isArray(fetchedJourney.habitLogs)
+          ? fetchedJourney.habitLogs
+          : [],
+        totalXp: initialProgress.total_xp,
+      };
+
+      // On page load: sync ALL historically-met levels from logged data.
+      // Uses checkUnlocksAll which sequentially completes levels until one isn't met.
+      // This restores correct state when Supabase progress is stale or empty.
+      const silentResult = checkUnlocksAll(initialProgress, fullTrackingOnLoad);
+      if (
+        silentResult.unlocked &&
+        silentResult.newCompletedIds &&
+        silentResult.newUnlockedIds
+      ) {
+        initialProgress = {
+          current_level_id:
+            silentResult.newUnlockedIds[
+              silentResult.newUnlockedIds.length - 1
+            ] || 1,
+          total_xp: silentResult.newTotalXp || initialProgress.total_xp,
+          unlocked_level_ids: silentResult.newUnlockedIds,
+          completed_level_ids: silentResult.newCompletedIds,
+        };
+
+        try {
+          const payload = {
+            user_id: session.user.id,
+            current_level_id: initialProgress.current_level_id,
+            total_xp: initialProgress.total_xp,
+            unlocked_level_ids: initialProgress.unlocked_level_ids,
+            completed_level_ids: initialProgress.completed_level_ids,
+            updated_at: new Date().toISOString(),
+          };
+          const { error: saveErr } = await supabase
+            .from("user_progress")
+            .upsert(payload, { onConflict: "user_id" });
+          if (saveErr) {
+            console.error("Silent progress upsert error:", saveErr);
+            if (saveErr.code === "23503") {
+              await supabase
+                .from("user_progress")
+                .upsert(
+                  { ...payload, current_level_id: null },
+                  { onConflict: "user_id" },
+                );
+            }
+          }
+        } catch (e) {
+          console.error("Silent progress upsert error:", e);
+        }
+      }
+
+      setUserProgress(initialProgress);
+
       const todayStr = new Date().toISOString().split("T")[0];
 
       // Set today's steps log
-      const todayStepLog = finalStepsLogs.find(log => log.date === todayStr);
+      const todayStepLog = finalStepsLogs.find((log) => log.date === todayStr);
       setStepsToday(todayStepLog ? todayStepLog.steps : 0);
 
       // Set today's water log
-      const todayWaterLog = finalWaterLogs.find(log => log.date === todayStr);
+      const todayWaterLog = finalWaterLogs.find((log) => log.date === todayStr);
       setWaterToday(todayWaterLog ? todayWaterLog.amount : 0);
 
       // Set yesterday's sleep log
       const yesterday = new Date();
       yesterday.setDate(yesterday.getDate() - 1);
       const yesterdayStr = yesterday.toISOString().split("T")[0];
-      const yesterdaySleepLog = finalSleepLogs.find(log => log.date === yesterdayStr);
+      const yesterdaySleepLog = finalSleepLogs.find(
+        (log) => log.date === yesterdayStr,
+      );
       setSleepToday(yesterdaySleepLog ? yesterdaySleepLog.hours : 7.0);
 
       // Set today's measurement log if exists
-      const todayMeasurementLog = finalMeasurementLogs.find(log => log.date === todayStr);
+      const todayMeasurementLog = finalMeasurementLogs.find(
+        (log) => log.date === todayStr,
+      );
       if (todayMeasurementLog) {
         setMeasurements({
-          waist: todayMeasurementLog.waist ? todayMeasurementLog.waist.toString() : "",
-          hips: todayMeasurementLog.hips ? todayMeasurementLog.hips.toString() : "",
-          chest: todayMeasurementLog.chest ? todayMeasurementLog.chest.toString() : "",
+          waist: todayMeasurementLog.waist
+            ? todayMeasurementLog.waist.toString()
+            : "",
+          hips: todayMeasurementLog.hips
+            ? todayMeasurementLog.hips.toString()
+            : "",
+          chest: todayMeasurementLog.chest
+            ? todayMeasurementLog.chest.toString()
+            : "",
         });
       }
 
       // Fetch AI recommendations
-      fetchRecommendations(Array.isArray(fetchedJourney.meals) ? fetchedJourney.meals : []);
+      fetchRecommendations(
+        Array.isArray(fetchedJourney.meals) ? fetchedJourney.meals : [],
+      );
       fetchSleepRecommendations(finalSleepLogs);
       setLoading(false);
     };
@@ -916,6 +1234,8 @@ export default function DashboardPage() {
       } else {
         toast.success("Weight logged successfully!");
       }
+      checkAndTriggerCelebration({ weightHistory: newHistory });
+      notifyDataLogged();
     };
 
     const urlParams = new URLSearchParams(window.location.search);
@@ -993,6 +1313,8 @@ export default function DashboardPage() {
         toast.success(
           editingMealId ? "Meal updated!" : "Meal logged and analyzed!",
         );
+        checkAndTriggerCelebration({ meals: newMeals });
+        notifyDataLogged();
       };
 
       const urlParams = new URLSearchParams(window.location.search);
@@ -1012,6 +1334,41 @@ export default function DashboardPage() {
       console.error(error);
       toast.error("Error logging meal. Please try again.");
       setAnalyzingMeal(false);
+    }
+  };
+
+  const handleDeleteMeal = async (mealId: string) => {
+    try {
+      const currentMeals = journey.meals || [];
+      const newMeals = currentMeals.filter((m) => m.id !== mealId);
+      const newJourney = { ...journey, meals: newMeals };
+
+      const finishDelete = () => {
+        setJourney(newJourney);
+        if (editingMealId === mealId) {
+          setIsMealModalOpen(false);
+          setEditingMealId(null);
+        }
+        toast.success("Meal log deleted.");
+        notifyDataLogged();
+      };
+
+      const urlParams = new URLSearchParams(window.location.search);
+      if (urlParams.get("bypassAuth") === "true" || !user) {
+        finishDelete();
+        return;
+      }
+
+      const { error } = await supabase
+        .from("users")
+        .update({ weight_loss_journey: cleanJourneyForDb(newJourney) })
+        .eq("id", user.id);
+
+      if (error) throw error;
+      finishDelete();
+    } catch (error) {
+      console.error(error);
+      toast.error("Error deleting meal. Please try again.");
     }
   };
 
@@ -1621,19 +1978,25 @@ export default function DashboardPage() {
                   <Camera className="w-5 h-5 text-blue-500" />
                   My Transformation Gallery
                 </h2>
-                {history.filter((entry) => entry.image_url || entry.imageUrl).length > 0 ? (
+                {history.filter((entry) => entry.image_url || entry.imageUrl)
+                  .length > 0 ? (
                   <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-thin w-full">
                     {history
                       .filter((entry) => entry.image_url || entry.imageUrl)
                       .map((entry) => {
                         const dateObj = new Date(entry.date);
-                        const formattedDate = dateObj.toLocaleDateString("en-US", {
-                          month: "short",
-                          day: "numeric",
-                          year: "numeric"
-                        });
+                        const formattedDate = dateObj.toLocaleDateString(
+                          "en-US",
+                          {
+                            month: "short",
+                            day: "numeric",
+                            year: "numeric",
+                          },
+                        );
                         const imgUrl = entry.image_url || entry.imageUrl;
-                        const weightDiff = initialWeight ? entry.weight - initialWeight : 0;
+                        const weightDiff = initialWeight
+                          ? entry.weight - initialWeight
+                          : 0;
 
                         return (
                           <div
@@ -1650,11 +2013,19 @@ export default function DashboardPage() {
                               <div className="absolute inset-0 bg-black/10 opacity-0 group-hover:opacity-100 transition-opacity" />
                             </div>
                             <div className="p-2.5">
-                              <p className="text-sm font-bold text-slate-900">{entry.weight} kg</p>
-                              <p className="text-sm font-semibold text-slate-800 mt-0.5">{formattedDate}</p>
+                              <p className="text-sm font-bold text-slate-900">
+                                {entry.weight} kg
+                              </p>
+                              <p className="text-sm font-semibold text-slate-800 mt-0.5">
+                                {formattedDate}
+                              </p>
                               {weightDiff !== 0 && (
-                                <p className={`text-sm font-bold mt-1 ${weightDiff < 0 ? 'text-emerald-600' : 'text-rose-500'}`}>
-                                  {weightDiff < 0 ? `${weightDiff.toFixed(1)} kg` : `+${weightDiff.toFixed(1)} kg`}
+                                <p
+                                  className={`text-sm font-bold mt-1 ${weightDiff < 0 ? "text-emerald-600" : "text-rose-500"}`}
+                                >
+                                  {weightDiff < 0
+                                    ? `${weightDiff.toFixed(1)} kg`
+                                    : `+${weightDiff.toFixed(1)} kg`}
                                 </p>
                               )}
                             </div>
@@ -1665,9 +2036,12 @@ export default function DashboardPage() {
                 ) : (
                   <div className="flex flex-col items-center justify-center py-8 text-center bg-slate-50 rounded-xl border border-dashed border-slate-200 px-4">
                     <Camera className="w-8 h-8 text-slate-300 mb-2" />
-                    <p className="text-sm font-medium text-slate-700">No transformation photos yet</p>
+                    <p className="text-sm font-medium text-slate-700">
+                      No transformation photos yet
+                    </p>
                     <p className="text-xs text-slate-500 mt-1 max-w-[240px]">
-                      Upload your photo when entering your daily weight to visualize your progress.
+                      Upload your photo when entering your daily weight to
+                      visualize your progress.
                     </p>
                   </div>
                 )}
@@ -1686,36 +2060,122 @@ export default function DashboardPage() {
                     Hydration Tracker
                   </h2>
                   <span className="text-xs font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded-full shrink-0">
-                    Target: {currentWeight ? (currentWeight * 0.035).toFixed(2) : "2.5"} L
+                    Target:{" "}
+                    {currentWeight ? (currentWeight * 0.035).toFixed(2) : "2.5"}{" "}
+                    L
                   </span>
                 </div>
 
-                {/* Cup Animation Area */}
+                {/* Animated Water Bottle Container */}
                 <div className="flex items-center gap-6 my-5">
-                  <div className="relative w-16 h-24 border-4 border-slate-300 rounded-b-3xl rounded-t-lg overflow-hidden bg-slate-50 flex items-end">
-                    {/* Water Level Fill */}
+                  <div className="relative w-20 h-28 border-4 border-slate-300 rounded-b-3xl rounded-t-xl overflow-hidden bg-slate-50 flex items-end shadow-inner shrink-0 group">
+                    {/* Bottle Neck / Cap Top */}
+                    <div className="absolute top-0 left-1/2 -translate-x-1/2 w-8 h-2 bg-slate-200 border-b border-slate-300 z-20 rounded-b-sm" />
+
+                    {/* Measurement tick marks on bottle side */}
+                    <div className="absolute left-1.5 top-4 bottom-2 flex flex-col justify-between z-20 pointer-events-none opacity-40">
+                      <div className="w-2.5 h-0.5 bg-slate-400" />
+                      <div className="w-1.5 h-0.5 bg-slate-400" />
+                      <div className="w-2.5 h-0.5 bg-slate-400" />
+                      <div className="w-1.5 h-0.5 bg-slate-400" />
+                      <div className="w-2.5 h-0.5 bg-slate-400" />
+                    </div>
+
+                    {/* Water Fill Level */}
                     <div
                       style={{
-                        height: `${Math.min(
-                          (waterToday / (currentWeight ? currentWeight * 0.035 : 2.5)) * 100,
-                          100
-                        )}%`,
+                        height: `${
+                          waterToday > 0
+                            ? Math.min(
+                                (waterToday /
+                                  (currentWeight
+                                    ? currentWeight * 0.035
+                                    : 2.5)) *
+                                  100,
+                                100,
+                              )
+                            : 0
+                        }%`,
                       }}
-                      className="w-full bg-blue-500 transition-all duration-500 relative flex items-center justify-center"
+                      className="w-full bg-gradient-to-t from-blue-600 via-blue-500 to-sky-400 transition-all duration-700 relative flex items-center justify-center overflow-hidden"
                     >
-                      {/* Wave Animation Overlay */}
-                      <div className="absolute top-0 left-0 right-0 h-2 bg-blue-400 opacity-50 animate-pulse" />
+                      {/* SVG Animated Liquid Surface Wave */}
+                      <div className="absolute -top-3 left-0 right-0 w-[200%] h-4 overflow-hidden pointer-events-none">
+                        <svg
+                          className="w-[200%] h-full text-sky-300 fill-current opacity-80"
+                          viewBox="0 0 1200 120"
+                          preserveAspectRatio="none"
+                          style={{
+                            animation: "waterWave 3s linear infinite",
+                          }}
+                        >
+                          <path d="M0,0 C150,90 350,-40 500,40 C650,120 900,-20 1200,40 L1200,120 L0,120 Z" />
+                        </svg>
+                      </div>
+
+                      {/* Secondary Wave Layer */}
+                      <div className="absolute -top-2.5 left-0 right-0 w-[200%] h-3 overflow-hidden pointer-events-none opacity-50">
+                        <svg
+                          className="w-[200%] h-full text-blue-300 fill-current"
+                          viewBox="0 0 1200 120"
+                          preserveAspectRatio="none"
+                          style={{
+                            animation: "waterWave 2.2s linear infinite reverse",
+                          }}
+                        >
+                          <path d="M0,40 C200,-30 400,80 600,10 C800,-40 1000,70 1200,10 L1200,120 L0,120 Z" />
+                        </svg>
+                      </div>
+
+                      {/* Rising Floating Bubbles */}
+                      <div className="absolute inset-0 pointer-events-none overflow-hidden">
+                        <span
+                          className="absolute bottom-1 left-2 w-2 h-2 bg-white/70 rounded-full blur-[0.3px]"
+                          style={{
+                            animation: "floatBubble 3.5s ease-in-out infinite",
+                            animationDelay: "0s",
+                          }}
+                        />
+                        <span
+                          className="absolute bottom-0 left-6 w-1.5 h-1.5 bg-white/80 rounded-full blur-[0.3px]"
+                          style={{
+                            animation: "floatBubble 2.8s ease-in-out infinite",
+                            animationDelay: "0.8s",
+                          }}
+                        />
+                        <span
+                          className="absolute bottom-2 left-10 w-2.5 h-2.5 bg-white/60 rounded-full blur-[0.3px]"
+                          style={{
+                            animation: "floatBubble 4s ease-in-out infinite",
+                            animationDelay: "1.5s",
+                          }}
+                        />
+                        <span
+                          className="absolute bottom-0 right-3 w-1.5 h-1.5 bg-white/70 rounded-full blur-[0.3px]"
+                          style={{
+                            animation: "floatBubble 3.2s ease-in-out infinite",
+                            animationDelay: "2.1s",
+                          }}
+                        />
+                      </div>
                     </div>
+
+                    {/* Glass shine highlight */}
+                    <div className="absolute inset-y-0 right-2 w-2 bg-gradient-to-l from-white/30 to-transparent pointer-events-none z-30" />
                   </div>
 
                   <div className="flex-1">
                     <p className="text-3xl font-extrabold text-slate-900">
-                      {waterToday.toFixed(2)} <span className="text-lg font-semibold text-slate-500">L</span>
+                      {waterToday.toFixed(2)}{" "}
+                      <span className="text-lg font-semibold text-slate-500">
+                        L
+                      </span>
                     </p>
                     <p className="text-xs text-slate-500 mt-1">
                       {Math.max(
-                        (currentWeight ? currentWeight * 0.035 : 2.5) - waterToday,
-                        0
+                        (currentWeight ? currentWeight * 0.035 : 2.5) -
+                          waterToday,
+                        0,
                       ).toFixed(2)}{" "}
                       L more to reach goal
                     </p>
@@ -1775,7 +2235,10 @@ export default function DashboardPage() {
                 {/* Sleep Arc Display */}
                 <div className="flex items-center gap-4 my-3">
                   <div className="relative w-16 h-16 flex items-center justify-center shrink-0">
-                    <svg className="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
+                    <svg
+                      className="w-full h-full transform -rotate-90"
+                      viewBox="0 0 100 100"
+                    >
                       <circle
                         cx="50"
                         cy="50"
@@ -1792,7 +2255,12 @@ export default function DashboardPage() {
                         strokeWidth="8"
                         fill="transparent"
                         strokeDasharray={251.2}
-                        strokeDashoffset={251.2 - (251.2 * Math.min(sleepToday, sleepAdvice.targetHours)) / sleepAdvice.targetHours}
+                        strokeDashoffset={
+                          251.2 -
+                          (251.2 *
+                            Math.min(sleepToday, sleepAdvice.targetHours)) /
+                            sleepAdvice.targetHours
+                        }
                         strokeLinecap="round"
                       />
                     </svg>
@@ -1805,16 +2273,27 @@ export default function DashboardPage() {
                     {/* Stepper controls */}
                     <div className="flex items-center gap-2 bg-slate-50 border border-slate-100 p-1.5 rounded-xl justify-between">
                       <button
-                        onClick={() => setSleepToday(prev => Math.max(0, parseFloat((prev - 0.5).toFixed(1))))}
+                        onClick={() =>
+                          setSleepToday((prev) =>
+                            Math.max(0, parseFloat((prev - 0.5).toFixed(1))),
+                          )
+                        }
                         className="w-7 h-7 flex items-center justify-center rounded-lg bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 font-bold transition text-sm"
                       >
                         -
                       </button>
                       <span className="font-extrabold text-sm text-slate-800 shrink-0">
-                        {sleepToday.toFixed(1)} <span className="text-[10px] font-normal text-slate-400">hrs</span>
+                        {sleepToday.toFixed(1)}{" "}
+                        <span className="text-[10px] font-normal text-slate-400">
+                          hrs
+                        </span>
                       </span>
                       <button
-                        onClick={() => setSleepToday(prev => Math.min(24, parseFloat((prev + 0.5).toFixed(1))))}
+                        onClick={() =>
+                          setSleepToday((prev) =>
+                            Math.min(24, parseFloat((prev + 0.5).toFixed(1))),
+                          )
+                        }
                         className="w-7 h-7 flex items-center justify-center rounded-lg bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 font-bold transition text-sm"
                       >
                         +
@@ -1828,7 +2307,9 @@ export default function DashboardPage() {
                   <div className="mt-3 bg-indigo-50/50 border border-indigo-100/50 rounded-xl p-2.5 flex items-start gap-2">
                     <Sparkles className="w-4 h-4 text-indigo-500 fill-indigo-500/10 shrink-0 mt-0.5" />
                     <p className="text-xs text-indigo-950 font-medium leading-relaxed animate-fade-in">
-                      {loadingSleepTips ? "Refreshing advice..." : sleepAdvice.tip}
+                      {loadingSleepTips
+                        ? "Refreshing advice..."
+                        : sleepAdvice.tip}
                     </p>
                   </div>
                 )}
@@ -1853,22 +2334,55 @@ export default function DashboardPage() {
             </div>
 
             {/* Steps Tracker Card (Commented out for now) */}
-            {/* 
+
             <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm flex flex-col justify-between min-w-0">
               <div>
-                <div className="flex justify-between items-start mb-4">
-                  <h2 className="text-md font-bold text-slate-900 flex items-center gap-2">
-                    <Footprints className="w-5 h-5 text-emerald-500" />
-                    Steps Tracker
-                  </h2>
-                  <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-full shrink-0">
-                    Target: 10,000
+                <div className="flex justify-between items-start mb-3">
+                  <div>
+                    <h2 className="text-md font-bold text-slate-900 flex items-center gap-2">
+                      <Footprints className="w-5 h-5 text-emerald-500" />
+                      Steps Tracker
+                    </h2>
+                    <p className="text-[11px] text-slate-500 font-medium">
+                      Daily Health Goal
+                    </p>
+                  </div>
+                  <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-full shrink-0 border border-emerald-100">
+                    Daily Goal: 10,000
                   </span>
                 </div>
 
+                {/* Journey Level Task Callout (Separated from Daily Health Goal) */}
+                {activeJourneyLevel?.type === "steps" && (
+                  <div className="my-2 bg-emerald-50/80 border border-emerald-200/80 rounded-xl p-2.5 flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm">🎯</span>
+                      <div>
+                        <p className="text-[11px] font-bold text-emerald-950">
+                          Journey Task #{activeJourneyLevel.order_index}:{" "}
+                          {activeJourneyLevel.title}
+                        </p>
+                        <p className="text-[10px] text-emerald-700 font-medium">
+                          Task Target:{" "}
+                          {activeJourneyLevel.requirement.target.toLocaleString()}{" "}
+                          steps
+                        </p>
+                      </div>
+                    </div>
+                    <span className="text-[10px] font-extrabold text-emerald-800 bg-white border border-emerald-200 px-2 py-0.5 rounded-full">
+                      {stepsToday >= activeJourneyLevel.requirement.target
+                        ? "✓ Task Met"
+                        : `${stepsToday.toLocaleString()}/${activeJourneyLevel.requirement.target.toLocaleString()}`}
+                    </span>
+                  </div>
+                )}
+
                 <div className="flex items-center gap-4 my-3">
                   <div className="relative w-16 h-16 flex items-center justify-center shrink-0">
-                    <svg className="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
+                    <svg
+                      className="w-full h-full transform -rotate-90"
+                      viewBox="0 0 100 100"
+                    >
                       <circle
                         cx="50"
                         cy="50"
@@ -1885,7 +2399,9 @@ export default function DashboardPage() {
                         strokeWidth="8"
                         fill="transparent"
                         strokeDasharray={251.2}
-                        strokeDashoffset={251.2 - (251.2 * Math.min(stepsToday, 10000)) / 10000}
+                        strokeDashoffset={
+                          251.2 - (251.2 * Math.min(stepsToday, 10000)) / 10000
+                        }
                         strokeLinecap="round"
                       />
                     </svg>
@@ -1896,12 +2412,15 @@ export default function DashboardPage() {
 
                   <div className="flex-1 min-w-0">
                     <p className="text-2xl font-extrabold text-slate-900 truncate">
-                      {stepsToday.toLocaleString()} <span className="text-xs font-semibold text-slate-500">steps</span>
+                      {stepsToday.toLocaleString()}{" "}
+                      <span className="text-xs font-semibold text-slate-500">
+                        steps
+                      </span>
                     </p>
                     <p className="text-xs text-slate-500 mt-1 truncate">
                       {stepsToday >= 10000
-                        ? "Goal reached! 🎉"
-                        : `${(10000 - stepsToday).toLocaleString()} to goal`}
+                        ? "Daily Goal reached! 🎉"
+                        : `${(10000 - stepsToday).toLocaleString()} to daily goal`}
                     </p>
                   </div>
                 </div>
@@ -1934,7 +2453,6 @@ export default function DashboardPage() {
                 </button>
               </div>
             </div>
-            */}
           </div>
 
           {/* AI Meal Recommendations Card Section */}
@@ -1948,7 +2466,9 @@ export default function DashboardPage() {
                 {loadingRecs ? (
                   <div className="flex flex-col items-center justify-center py-10 text-center">
                     <Loader2 className="w-8 h-8 text-orange-500 animate-spin mb-2" />
-                    <p className="text-xs text-slate-500 font-medium">Generating healthy recommendations...</p>
+                    <p className="text-xs text-slate-500 font-medium">
+                      Generating healthy recommendations...
+                    </p>
                   </div>
                 ) : recommendations.length > 0 ? (
                   <div className="grid sm:grid-cols-3 gap-4">
@@ -1976,11 +2496,17 @@ export default function DashboardPage() {
 
                         {/* Ingredients Popover trigger or bulleted list on hover */}
                         <div className="mt-3 pt-2.5 border-t border-slate-200/60">
-                          <p className="text-sm font-bold text-slate-900 mb-1">Ingredients:</p>
+                          <p className="text-sm font-bold text-slate-900 mb-1">
+                            Ingredients:
+                          </p>
                           <ul className="text-sm text-slate-900 list-disc list-inside space-y-0.5 truncate">
-                            {recipe.ingredients?.slice(0, 3).map((ing: string, i: number) => (
-                              <li key={i} className="truncate">{ing}</li>
-                            ))}
+                            {recipe.ingredients
+                              ?.slice(0, 3)
+                              .map((ing: string, i: number) => (
+                                <li key={i} className="truncate">
+                                  {ing}
+                                </li>
+                              ))}
                             {recipe.ingredients?.length > 3 && (
                               <li className="list-none text-[8px] font-bold text-slate-400 mt-0.5">
                                 {/* +{recipe.ingredients.length - 3} more ingredients */}
@@ -1994,7 +2520,9 @@ export default function DashboardPage() {
                 ) : (
                   <div className="flex flex-col items-center justify-center py-10 text-center bg-slate-50 rounded-xl border border-dashed border-slate-200">
                     <Utensils className="w-8 h-8 text-slate-300 mb-2" />
-                    <p className="text-xs font-semibold text-slate-700">No suggestions yet</p>
+                    <p className="text-xs font-semibold text-slate-700">
+                      No suggestions yet
+                    </p>
                     <p className="text-[11px] text-slate-400 max-w-[200px] mt-0.5">
                       Log meals today to unlock AI-powered recipes tomorrow.
                     </p>
@@ -2015,31 +2543,52 @@ export default function DashboardPage() {
                 </h2>
                 <div className="grid grid-cols-3 gap-3 mb-4">
                   <div>
-                    <label className="block text-xs font-semibold text-slate-500 mb-1">Waist</label>
+                    <label className="block text-xs font-semibold text-slate-500 mb-1">
+                      Waist
+                    </label>
                     <input
                       type="number"
                       value={measurements.waist}
-                      onChange={(e) => setMeasurements({ ...measurements, waist: e.target.value })}
+                      onChange={(e) =>
+                        setMeasurements({
+                          ...measurements,
+                          waist: e.target.value,
+                        })
+                      }
                       placeholder="e.g. 34"
                       className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-indigo-400 transition"
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-semibold text-slate-500 mb-1">Hips</label>
+                    <label className="block text-xs font-semibold text-slate-500 mb-1">
+                      Hips
+                    </label>
                     <input
                       type="number"
                       value={measurements.hips}
-                      onChange={(e) => setMeasurements({ ...measurements, hips: e.target.value })}
+                      onChange={(e) =>
+                        setMeasurements({
+                          ...measurements,
+                          hips: e.target.value,
+                        })
+                      }
                       placeholder="e.g. 40"
                       className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-indigo-400 transition"
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-semibold text-slate-500 mb-1">Chest</label>
+                    <label className="block text-xs font-semibold text-slate-500 mb-1">
+                      Chest
+                    </label>
                     <input
                       type="number"
                       value={measurements.chest}
-                      onChange={(e) => setMeasurements({ ...measurements, chest: e.target.value })}
+                      onChange={(e) =>
+                        setMeasurements({
+                          ...measurements,
+                          chest: e.target.value,
+                        })
+                      }
                       placeholder="e.g. 38"
                       className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-indigo-400 transition"
                     />
@@ -2072,25 +2621,70 @@ export default function DashboardPage() {
                 </h2>
                 <div className="space-y-3 mb-4">
                   <label className="flex items-center gap-3 cursor-pointer group">
-                    <div className={`w-5 h-5 rounded border flex items-center justify-center transition-colors ${habits.vitamins ? 'bg-emerald-500 border-emerald-500' : 'border-slate-300 group-hover:border-emerald-400'}`}>
-                      {habits.vitamins && <Check className="w-3.5 h-3.5 text-white" />}
+                    <div
+                      className={`w-5 h-5 rounded border flex items-center justify-center transition-colors ${habits.vitamins ? "bg-emerald-500 border-emerald-500" : "border-slate-300 group-hover:border-emerald-400"}`}
+                    >
+                      {habits.vitamins && (
+                        <Check className="w-3.5 h-3.5 text-white" />
+                      )}
                     </div>
-                    <span className={`text-sm font-medium ${habits.vitamins ? 'text-slate-400 line-through' : 'text-slate-700'}`}>Took Vitamins</span>
-                    <input type="checkbox" className="hidden" checked={habits.vitamins} onChange={(e) => setHabits({ ...habits, vitamins: e.target.checked })} />
+                    <span
+                      className={`text-sm font-medium ${habits.vitamins ? "text-slate-400 line-through" : "text-slate-700"}`}
+                    >
+                      Took Vitamins
+                    </span>
+                    <input
+                      type="checkbox"
+                      className="hidden"
+                      checked={habits.vitamins}
+                      onChange={(e) =>
+                        setHabits({ ...habits, vitamins: e.target.checked })
+                      }
+                    />
                   </label>
                   <label className="flex items-center gap-3 cursor-pointer group">
-                    <div className={`w-5 h-5 rounded border flex items-center justify-center transition-colors ${habits.walk ? 'bg-emerald-500 border-emerald-500' : 'border-slate-300 group-hover:border-emerald-400'}`}>
-                      {habits.walk && <Check className="w-3.5 h-3.5 text-white" />}
+                    <div
+                      className={`w-5 h-5 rounded border flex items-center justify-center transition-colors ${habits.walk ? "bg-emerald-500 border-emerald-500" : "border-slate-300 group-hover:border-emerald-400"}`}
+                    >
+                      {habits.walk && (
+                        <Check className="w-3.5 h-3.5 text-white" />
+                      )}
                     </div>
-                    <span className={`text-sm font-medium ${habits.walk ? 'text-slate-400 line-through' : 'text-slate-700'}`}>30 Min Walk</span>
-                    <input type="checkbox" className="hidden" checked={habits.walk} onChange={(e) => setHabits({ ...habits, walk: e.target.checked })} />
+                    <span
+                      className={`text-sm font-medium ${habits.walk ? "text-slate-400 line-through" : "text-slate-700"}`}
+                    >
+                      30 Min Walk
+                    </span>
+                    <input
+                      type="checkbox"
+                      className="hidden"
+                      checked={habits.walk}
+                      onChange={(e) =>
+                        setHabits({ ...habits, walk: e.target.checked })
+                      }
+                    />
                   </label>
                   <label className="flex items-center gap-3 cursor-pointer group">
-                    <div className={`w-5 h-5 rounded border flex items-center justify-center transition-colors ${habits.noSugar ? 'bg-emerald-500 border-emerald-500' : 'border-slate-300 group-hover:border-emerald-400'}`}>
-                      {habits.noSugar && <Check className="w-3.5 h-3.5 text-white" />}
+                    <div
+                      className={`w-5 h-5 rounded border flex items-center justify-center transition-colors ${habits.noSugar ? "bg-emerald-500 border-emerald-500" : "border-slate-300 group-hover:border-emerald-400"}`}
+                    >
+                      {habits.noSugar && (
+                        <Check className="w-3.5 h-3.5 text-white" />
+                      )}
                     </div>
-                    <span className={`text-sm font-medium ${habits.noSugar ? 'text-slate-400 line-through' : 'text-slate-700'}`}>No Refined Sugar</span>
-                    <input type="checkbox" className="hidden" checked={habits.noSugar} onChange={(e) => setHabits({ ...habits, noSugar: e.target.checked })} />
+                    <span
+                      className={`text-sm font-medium ${habits.noSugar ? "text-slate-400 line-through" : "text-slate-700"}`}
+                    >
+                      No Refined Sugar
+                    </span>
+                    <input
+                      type="checkbox"
+                      className="hidden"
+                      checked={habits.noSugar}
+                      onChange={(e) =>
+                        setHabits({ ...habits, noSugar: e.target.checked })
+                      }
+                    />
                   </label>
                 </div>
               </div>
@@ -2112,8 +2706,6 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          
-
           {/* Meal Tracker Section */}
           <div className="mt-8 flex flex-col gap-6">
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
@@ -2132,21 +2724,27 @@ export default function DashboardPage() {
                     Total Today:
                   </span>
                   <span className="text-2xl font-bold text-orange-600">
-                    {totalCaloriesToday} <span className="text-sm text-orange-800 font-medium">/ {targetGoal ? targetGoal * 24 : 2000} kcal</span>
+                    {totalCaloriesToday}{" "}
+                    <span className="text-sm text-orange-800 font-medium">
+                      / {targetGoal ? targetGoal * 24 : 2000} kcal
+                    </span>
                   </span>
                 </div>
                 {totalCaloriesToday > (targetGoal ? targetGoal * 24 : 2000) && (
                   <div className="bg-red-50 text-red-700 text-xs font-semibold px-3 py-1.5 rounded-lg border border-red-100 flex items-center gap-1.5">
                     <Sparkles className="w-3.5 h-3.5" />
-                    You've exceeded your daily limit. A short 15-min walk can help balance it out!
+                    You've exceeded your daily limit. A short 15-min walk can
+                    help balance it out!
                   </div>
                 )}
-                {totalCaloriesToday > 0 && totalCaloriesToday <= (targetGoal ? targetGoal * 24 : 2000) && (
-                  <div className="bg-emerald-50 text-emerald-700 text-xs font-semibold px-3 py-1.5 rounded-lg border border-emerald-100 flex items-center gap-1.5">
-                    <Check className="w-3.5 h-3.5" />
-                    You're within your calorie goal. Great discipline today!
-                  </div>
-                )}
+                {totalCaloriesToday > 0 &&
+                  totalCaloriesToday <=
+                    (targetGoal ? targetGoal * 24 : 2000) && (
+                    <div className="bg-emerald-50 text-emerald-700 text-xs font-semibold px-3 py-1.5 rounded-lg border border-emerald-100 flex items-center gap-1.5">
+                      <Check className="w-3.5 h-3.5" />
+                      You're within your calorie goal. Great discipline today!
+                    </div>
+                  )}
               </div>
             </div>
 
@@ -2198,7 +2796,7 @@ export default function DashboardPage() {
                             categoryMeals.map((meal) => (
                               <div
                                 key={meal.id}
-                                className="border border-slate-100 rounded-lg p-3 bg-slate-50"
+                                className="border border-slate-100 rounded-lg p-3 bg-slate-50 relative group/meal"
                               >
                                 <div className="flex justify-between items-start mb-1">
                                   <span className="text-sm font-medium">
@@ -2207,15 +2805,25 @@ export default function DashboardPage() {
                                       { hour: "2-digit", minute: "2-digit" },
                                     )}
                                   </span>
-                                  <span className="text-xs font-bold text-orange-600">
-                                    {meal.calories} kcal
-                                  </span>
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-xs font-bold text-orange-600">
+                                      {meal.calories} kcal
+                                    </span>
+                                    <button
+                                      onClick={() => handleDeleteMeal(meal.id)}
+                                      className="p-1 rounded-md text-slate-400 hover:text-red-600 hover:bg-red-50 transition"
+                                      title="Delete this meal log"
+                                    >
+                                      <Trash2 className="w-3.5 h-3.5" />
+                                    </button>
+                                  </div>
                                 </div>
-                                <p className="text-md font-medium  mb-2">
+                                <p className="text-md font-medium mb-2">
                                   {meal.description}
                                 </p>
-                                <p className="text-sm italic bg-white p-2 rounded border border-slate-100">
-                                  <Sparkles className="w-5 h-5 text-blue-500 shrink-0" />{meal.feedback}
+                                <p className="text-sm italic bg-white p-2 rounded border border-slate-100 flex items-center gap-1.5">
+                                  <Sparkles className="w-4 h-4 text-blue-500 shrink-0" />
+                                  {meal.feedback}
                                 </p>
                               </div>
                             ))
@@ -2227,18 +2835,30 @@ export default function DashboardPage() {
                         </div>
 
                         {categoryMeals.length > 0 ? (
-                          <button
-                            onClick={() => {
-                              const mealToEdit = categoryMeals[0];
-                              setMealType(mealCategory as any);
-                              setMealDescription(mealToEdit.description);
-                              setEditingMealId(mealToEdit.id);
-                              setIsMealModalOpen(true);
-                            }}
-                            className="w-full py-2.5 rounded-xl border-2 border-solid border-slate-200 text-slate-600 font-semibold hover:bg-slate-50 transition flex items-center justify-center gap-2 mt-auto"
-                          >
-                            Edit {mealCategory}
-                          </button>
+                          <div className="flex gap-2 mt-auto">
+                            <button
+                              onClick={() => {
+                                const mealToEdit = categoryMeals[0];
+                                setMealType(mealCategory as any);
+                                setMealDescription(mealToEdit.description);
+                                setEditingMealId(mealToEdit.id);
+                                setIsMealModalOpen(true);
+                              }}
+                              className="flex-1 py-2.5 rounded-xl border-2 border-solid border-slate-200 text-slate-600 font-semibold hover:bg-slate-50 transition flex items-center justify-center gap-1 text-xs"
+                            >
+                              Edit {mealCategory}
+                            </button>
+                            <button
+                              onClick={() =>
+                                handleDeleteMeal(categoryMeals[0].id)
+                              }
+                              className="px-3 py-2.5 rounded-xl border-2 border-solid border-red-200 text-red-600 hover:bg-red-50 font-semibold transition flex items-center justify-center gap-1 text-xs"
+                              title={`Delete ${mealCategory}`}
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                              Delete
+                            </button>
+                          </div>
                         ) : (
                           <button
                             onClick={() => {
@@ -2268,7 +2888,7 @@ export default function DashboardPage() {
             </h2>
 
             {Object.keys(pastMealsByDate).length > 0 ? (
-              <div className="space-y-6">
+              <div className="max-h-[480px] overflow-y-auto pr-2 space-y-6">
                 {Object.entries(pastMealsByDate)
                   .sort(
                     (a, b) =>
@@ -2345,7 +2965,7 @@ export default function DashboardPage() {
 
       {/* Add Meal Modal */}
       {isMealModalOpen && (
-        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-50 p-4 -mt-52">
           <div className="bg-white rounded-3xl shadow-xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in-95 duration-200">
             <div className="flex items-center justify-between p-5 border-b border-slate-100">
               <h3 className="font-bold text-lg text-slate-900">
@@ -2395,23 +3015,36 @@ export default function DashboardPage() {
                 />
               </div>
 
-              <button
-                type="submit"
-                disabled={analyzingMeal || !mealDescription}
-                className="w-full rounded-2xl bg-orange-600 px-4 py-4 text-sm font-bold text-white transition hover:bg-orange-700 focus:ring-4 focus:ring-orange-200 disabled:opacity-70 flex items-center justify-center gap-2 shadow-md hover:shadow-lg"
-              >
-                {analyzingMeal ? (
-                  <>
-                    <Loader2 className="w-5 h-5 animate-spin" />
-                    AI is analyzing...
-                  </>
-                ) : (
-                  <>
-                    <Sparkles className="w-5 h-5" />
-                    Analyze & Log
-                  </>
+              <div className="flex gap-2">
+                {editingMealId && (
+                  <button
+                    type="button"
+                    onClick={() => handleDeleteMeal(editingMealId)}
+                    className="px-4 py-4 rounded-2xl border-2 border-red-200 text-red-600 font-bold hover:bg-red-50 transition flex items-center justify-center gap-1.5 text-sm shrink-0"
+                    title="Delete Meal"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                    Delete
+                  </button>
                 )}
-              </button>
+                <button
+                  type="submit"
+                  disabled={analyzingMeal || !mealDescription}
+                  className="flex-1 rounded-2xl bg-orange-600 px-4 py-4 text-sm font-bold text-white transition hover:bg-orange-700 focus:ring-4 focus:ring-orange-200 disabled:opacity-70 flex items-center justify-center gap-2 shadow-md hover:shadow-lg"
+                >
+                  {analyzingMeal ? (
+                    <>
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                      AI is analyzing...
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="w-5 h-5" />
+                      {editingMealId ? "Update & Re-Analyze" : "Analyze & Log"}
+                    </>
+                  )}
+                </button>
+              </div>
             </form>
           </div>
         </div>
@@ -2427,7 +3060,7 @@ export default function DashboardPage() {
 
       {/* Add Weight Modal */}
       {isModalOpen && (
-        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-50 p-4 -mt-44">
           <div className="bg-white rounded-3xl shadow-xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in-95 duration-200">
             <div className="flex items-center justify-between p-5 border-b border-slate-100">
               <h3 className="font-bold text-lg text-slate-900">
@@ -2506,7 +3139,9 @@ export default function DashboardPage() {
                   ) : (
                     <label className="flex flex-col items-center justify-center w-20 h-20 rounded-xl border-2 border-dashed border-slate-300 bg-slate-50 hover:bg-slate-100 cursor-pointer transition shrink-0">
                       <ImageIcon className="w-5 h-5 text-slate-400" />
-                      <span className="text-[10px] text-slate-500 mt-1 font-semibold">Upload</span>
+                      <span className="text-[10px] text-slate-500 mt-1 font-semibold">
+                        Upload
+                      </span>
                       <input
                         type="file"
                         accept="image/*"
@@ -2564,7 +3199,7 @@ export default function DashboardPage() {
                   ? "Uploading Photo..."
                   : saving
                     ? "Saving..."
-                    : "FWeight Log"}
+                    : "Weight Log"}
               </button>
             </form>
           </div>
@@ -2594,33 +3229,44 @@ export default function DashboardPage() {
       )}
 
       {/* Water History Modal */}
-      {isWaterHistoryModalOpen && (() => {
-        const displayLogs = mergeLogsByDate(waterLogsState, journey.waterLogs || []);
-        return (
-          <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-200 mt-30">
-            <div className="bg-white rounded-3xl w-full max-w-md shadow-2xl overflow-hidden flex flex-col max-h-[80vh]">
-              <div className="bg-blue-600 px-6 py-5 flex items-center justify-between shrink-0">
-                <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                  <Droplet className="w-5 h-5 text-blue-200" /> Water Intake History
-                </h3>
-                <button
-                  onClick={() => setIsWaterHistoryModalOpen(false)}
-                  className="text-blue-100 hover:bg-blue-500/50 p-1.5 rounded-full transition"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-              
-              <div className="p-6 overflow-y-auto">
-                {displayLogs && displayLogs.length > 0 ? (
-                  <div className="space-y-3">
-                    {displayLogs
-                      .map((log) => {
+      {isWaterHistoryModalOpen &&
+        (() => {
+          const displayLogs = mergeLogsByDate(
+            waterLogsState,
+            journey.waterLogs || [],
+          );
+          return (
+            <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-200 mt-30">
+              <div className="bg-white rounded-3xl w-full max-w-md shadow-2xl overflow-hidden flex flex-col max-h-[80vh]">
+                <div className="bg-blue-600 px-6 py-5 flex items-center justify-between shrink-0">
+                  <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                    <Droplet className="w-5 h-5 text-blue-200" /> Water Intake
+                    History
+                  </h3>
+                  <button
+                    onClick={() => setIsWaterHistoryModalOpen(false)}
+                    className="text-blue-100 hover:bg-blue-500/50 p-1.5 rounded-full transition"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+
+                <div className="p-6 overflow-y-auto">
+                  {displayLogs && displayLogs.length > 0 ? (
+                    <div className="space-y-3">
+                      {displayLogs.map((log) => {
                         const d = new Date(log.date);
                         return (
-                          <div key={log.date} className="flex items-center justify-between p-4 bg-slate-50 border border-slate-100 rounded-2xl">
+                          <div
+                            key={log.date}
+                            className="flex items-center justify-between p-4 bg-slate-50 border border-slate-100 rounded-2xl"
+                          >
                             <span className="font-semibold text-slate-700">
-                              {d.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })}
+                              {d.toLocaleDateString("en-US", {
+                                weekday: "short",
+                                month: "short",
+                                day: "numeric",
+                              })}
                             </span>
                             <span className="font-bold text-blue-600 text-lg bg-blue-100/50 px-3 py-1 rounded-full">
                               {log.amount.toFixed(2)} L
@@ -2628,48 +3274,62 @@ export default function DashboardPage() {
                           </div>
                         );
                       })}
-                  </div>
-                ) : (
-                  <div className="text-center py-10">
-                    <Droplet className="w-12 h-12 text-blue-100 mx-auto mb-3" />
-                    <p className="text-slate-500 font-medium">No water history found.</p>
-                    <p className="text-xs text-slate-400 mt-1">Start logging your daily water intake!</p>
-                  </div>
-                )}
+                    </div>
+                  ) : (
+                    <div className="text-center py-10">
+                      <Droplet className="w-12 h-12 text-blue-100 mx-auto mb-3" />
+                      <p className="text-slate-500 font-medium">
+                        No water history found.
+                      </p>
+                      <p className="text-xs text-slate-400 mt-1">
+                        Start logging your daily water intake!
+                      </p>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
-          </div>
-        );
-      })()}
+          );
+        })()}
 
       {/* Sleep History Modal */}
-      {isSleepHistoryModalOpen && (() => {
-        const displayLogs = mergeLogsByDate(sleepLogsState, journey.sleepLogs || []);
-        return (
-          <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-200 mt-30">
-            <div className="bg-white rounded-3xl w-full max-w-md shadow-2xl overflow-hidden flex flex-col max-h-[80vh]">
-              <div className="bg-indigo-600 px-6 py-5 flex items-center justify-between shrink-0">
-                <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                  <Moon className="w-5 h-5 text-indigo-200" /> Sleep History
-                </h3>
-                <button
-                  onClick={() => setIsSleepHistoryModalOpen(false)}
-                  className="text-indigo-100 hover:bg-indigo-500/50 p-1.5 rounded-full transition"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-              
-              <div className="p-6 overflow-y-auto">
-                {displayLogs && displayLogs.length > 0 ? (
-                  <div className="space-y-3">
-                    {displayLogs
-                      .map((log) => {
+      {isSleepHistoryModalOpen &&
+        (() => {
+          const displayLogs = mergeLogsByDate(
+            sleepLogsState,
+            journey.sleepLogs || [],
+          );
+          return (
+            <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-200 mt-30">
+              <div className="bg-white rounded-3xl w-full max-w-md shadow-2xl overflow-hidden flex flex-col max-h-[80vh]">
+                <div className="bg-indigo-600 px-6 py-5 flex items-center justify-between shrink-0">
+                  <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                    <Moon className="w-5 h-5 text-indigo-200" /> Sleep History
+                  </h3>
+                  <button
+                    onClick={() => setIsSleepHistoryModalOpen(false)}
+                    className="text-indigo-100 hover:bg-indigo-500/50 p-1.5 rounded-full transition"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+
+                <div className="p-6 overflow-y-auto">
+                  {displayLogs && displayLogs.length > 0 ? (
+                    <div className="space-y-3">
+                      {displayLogs.map((log) => {
                         const d = new Date(log.date);
                         return (
-                          <div key={log.date} className="flex items-center justify-between p-4 bg-slate-50 border border-slate-100 rounded-2xl">
+                          <div
+                            key={log.date}
+                            className="flex items-center justify-between p-4 bg-slate-50 border border-slate-100 rounded-2xl"
+                          >
                             <span className="font-semibold text-slate-700">
-                              {d.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })}
+                              {d.toLocaleDateString("en-US", {
+                                weekday: "short",
+                                month: "short",
+                                day: "numeric",
+                              })}
                             </span>
                             <span className="font-bold text-indigo-600 text-lg bg-indigo-100/50 px-3 py-1 rounded-full">
                               {log.hours.toFixed(1)} h
@@ -2677,70 +3337,101 @@ export default function DashboardPage() {
                           </div>
                         );
                       })}
-                  </div>
-                ) : (
-                  <div className="text-center py-10">
-                    <Moon className="w-12 h-12 text-indigo-100 mx-auto mb-3" />
-                    <p className="text-slate-500 font-medium">No sleep history found.</p>
-                    <p className="text-xs text-slate-400 mt-1">Start logging your daily sleep hours!</p>
-                  </div>
-                )}
+                    </div>
+                  ) : (
+                    <div className="text-center py-10">
+                      <Moon className="w-12 h-12 text-indigo-100 mx-auto mb-3" />
+                      <p className="text-slate-500 font-medium">
+                        No sleep history found.
+                      </p>
+                      <p className="text-xs text-slate-400 mt-1">
+                        Start logging your daily sleep hours!
+                      </p>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
-          </div>
-        );
-      })()}
+          );
+        })()}
 
       {/* Measurements History Modal */}
-      {isMeasurementsHistoryModalOpen && (() => {
-        const displayLogs = mergeLogsByDate(measurementLogsState, journey.measurements || []);
-        return (
-          <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-200 mt-30">
-            <div className="bg-white rounded-3xl w-full max-w-md shadow-2xl overflow-hidden flex flex-col max-h-[80vh]">
-              <div className="bg-indigo-600 px-6 py-5 flex items-center justify-between shrink-0">
-                <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                  <Ruler className="w-5 h-5 text-indigo-200" /> Measurements History
-                </h3>
-                <button
-                  onClick={() => setIsMeasurementsHistoryModalOpen(false)}
-                  className="text-indigo-100 hover:bg-indigo-500/50 p-1.5 rounded-full transition"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-              
-              <div className="p-6 overflow-y-auto">
-                {displayLogs && displayLogs.length > 0 ? (
-                  <div className="space-y-3">
-                    {displayLogs
-                      .map((log) => {
+      {isMeasurementsHistoryModalOpen &&
+        (() => {
+          const displayLogs = mergeLogsByDate(
+            measurementLogsState,
+            journey.measurements || [],
+          );
+          return (
+            <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-200 mt-30">
+              <div className="bg-white rounded-3xl w-full max-w-md shadow-2xl overflow-hidden flex flex-col max-h-[80vh]">
+                <div className="bg-indigo-600 px-6 py-5 flex items-center justify-between shrink-0">
+                  <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                    <Ruler className="w-5 h-5 text-indigo-200" /> Measurements
+                    History
+                  </h3>
+                  <button
+                    onClick={() => setIsMeasurementsHistoryModalOpen(false)}
+                    className="text-indigo-100 hover:bg-indigo-500/50 p-1.5 rounded-full transition"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+
+                <div className="p-6 overflow-y-auto">
+                  {displayLogs && displayLogs.length > 0 ? (
+                    <div className="space-y-3">
+                      {displayLogs.map((log) => {
                         const d = new Date(log.date);
                         return (
-                          <div key={log.date} className="flex flex-col gap-2 p-4 bg-slate-50 border border-slate-100 rounded-2xl">
+                          <div
+                            key={log.date}
+                            className="flex flex-col gap-2 p-4 bg-slate-50 border border-slate-100 rounded-2xl"
+                          >
                             <span className="font-semibold text-slate-700">
-                              {d.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })}
+                              {d.toLocaleDateString("en-US", {
+                                weekday: "short",
+                                month: "short",
+                                day: "numeric",
+                              })}
                             </span>
                             <div className="flex gap-2">
-                              {log.waist && <span className="text-xs font-bold text-indigo-600 bg-indigo-100/50 px-2 py-1 rounded-md">Waist: {log.waist}"</span>}
-                              {log.hips && <span className="text-xs font-bold text-indigo-600 bg-indigo-100/50 px-2 py-1 rounded-md">Hips: {log.hips}"</span>}
-                              {log.chest && <span className="text-xs font-bold text-indigo-600 bg-indigo-100/50 px-2 py-1 rounded-md">Chest: {log.chest}"</span>}
+                              {log.waist && (
+                                <span className="text-xs font-bold text-indigo-600 bg-indigo-100/50 px-2 py-1 rounded-md">
+                                  Waist: {log.waist}"
+                                </span>
+                              )}
+                              {log.hips && (
+                                <span className="text-xs font-bold text-indigo-600 bg-indigo-100/50 px-2 py-1 rounded-md">
+                                  Hips: {log.hips}"
+                                </span>
+                              )}
+                              {log.chest && (
+                                <span className="text-xs font-bold text-indigo-600 bg-indigo-100/50 px-2 py-1 rounded-md">
+                                  Chest: {log.chest}"
+                                </span>
+                              )}
                             </div>
                           </div>
                         );
                       })}
-                  </div>
-                ) : (
-                  <div className="text-center py-10">
-                    <Ruler className="w-12 h-12 text-indigo-100 mx-auto mb-3" />
-                    <p className="text-slate-500 font-medium">No measurements history found.</p>
-                    <p className="text-xs text-slate-400 mt-1">Start logging your body measurements!</p>
-                  </div>
-                )}
+                    </div>
+                  ) : (
+                    <div className="text-center py-10">
+                      <Ruler className="w-12 h-12 text-indigo-100 mx-auto mb-3" />
+                      <p className="text-slate-500 font-medium">
+                        No measurements history found.
+                      </p>
+                      <p className="text-xs text-slate-400 mt-1">
+                        Start logging your body measurements!
+                      </p>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
-          </div>
-        );
-      })()}
+          );
+        })()}
 
       {/* Habits History Modal */}
       {isHabitsHistoryModalOpen && (
@@ -2748,7 +3439,8 @@ export default function DashboardPage() {
           <div className="bg-white rounded-3xl w-full max-w-md shadow-2xl overflow-hidden flex flex-col max-h-[80vh]">
             <div className="bg-emerald-600 px-6 py-5 flex items-center justify-between shrink-0">
               <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                <CheckSquare className="w-5 h-5 text-emerald-200" /> Habits History
+                <CheckSquare className="w-5 h-5 text-emerald-200" /> Habits
+                History
               </h3>
               <button
                 onClick={() => setIsHabitsHistoryModalOpen(false)}
@@ -2757,24 +3449,40 @@ export default function DashboardPage() {
                 <X className="w-5 h-5" />
               </button>
             </div>
-            
+
             <div className="p-6 overflow-y-auto">
               {journey.habitLogs && journey.habitLogs.length > 0 ? (
                 <div className="space-y-3">
                   {[...journey.habitLogs]
-                    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+                    .sort(
+                      (a, b) =>
+                        new Date(b.date).getTime() - new Date(a.date).getTime(),
+                    )
                     .map((log) => {
                       const d = new Date(log.date);
                       return (
-                        <div key={log.date} className="flex flex-col gap-2 p-4 bg-slate-50 border border-slate-100 rounded-2xl">
+                        <div
+                          key={log.date}
+                          className="flex flex-col gap-2 p-4 bg-slate-50 border border-slate-100 rounded-2xl"
+                        >
                           <span className="font-semibold text-slate-700">
-                            {d.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })}
+                            {d.toLocaleDateString("en-US", {
+                              weekday: "short",
+                              month: "short",
+                              day: "numeric",
+                            })}
                           </span>
                           <div className="flex flex-wrap gap-2">
                             {Object.entries(log.habits).map(([habit, done]) => (
-                               <span key={habit} className={`text-xs font-bold px-2 py-1 rounded-md ${done ? 'text-emerald-700 bg-emerald-100' : 'text-slate-500 bg-slate-200'}`}>
-                                 {done ? '✅ ' : '❌ '}{habit.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())}
-                               </span>
+                              <span
+                                key={habit}
+                                className={`text-xs font-bold px-2 py-1 rounded-md ${done ? "text-emerald-700 bg-emerald-100" : "text-slate-500 bg-slate-200"}`}
+                              >
+                                {done ? "✅ " : "❌ "}
+                                {habit
+                                  .replace(/([A-Z])/g, " $1")
+                                  .replace(/^./, (str) => str.toUpperCase())}
+                              </span>
                             ))}
                           </div>
                         </div>
@@ -2784,14 +3492,26 @@ export default function DashboardPage() {
               ) : (
                 <div className="text-center py-10">
                   <CheckSquare className="w-12 h-12 text-emerald-100 mx-auto mb-3" />
-                  <p className="text-slate-500 font-medium">No habits history found.</p>
-                  <p className="text-xs text-slate-400 mt-1">Start logging your daily habits!</p>
+                  <p className="text-slate-500 font-medium">
+                    No habits history found.
+                  </p>
+                  <p className="text-xs text-slate-400 mt-1">
+                    Start logging your daily habits!
+                  </p>
                 </div>
               )}
             </div>
           </div>
         </div>
       )}
+
+      {/* Level Unlocked Celebration Overlay */}
+      <CelebrationOverlay
+        isVisible={celebration.visible}
+        level={celebration.level}
+        xpGained={celebration.xp}
+        onDismiss={() => setCelebration({ visible: false, level: null, xp: 0 })}
+      />
     </div>
   );
 }

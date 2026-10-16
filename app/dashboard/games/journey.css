@@ -1,0 +1,250 @@
+/* ============================================================
+   Journey Map — CSS Animations & Styles
+   ============================================================ */
+
+/* ── Path Flow (Static) ── */
+/* Keyframes removed to prevent path blinking */
+
+/* ── Node Pulse (Active Level) ── */
+@keyframes pulseGlow {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(var(--glow-color, 59, 130, 246), 0.5);
+  }
+  50% {
+    box-shadow: 0 0 0 12px rgba(var(--glow-color, 59, 130, 246), 0);
+  }
+}
+
+@keyframes pulseRing {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 0.6;
+  }
+  50% {
+    transform: scale(1.3);
+    opacity: 0;
+  }
+}
+
+/* ── Boss Node Crown Bounce ── */
+@keyframes crownBounce {
+  0%, 100% { transform: translateY(0) rotate(-3deg); }
+  25% { transform: translateY(-4px) rotate(3deg); }
+  50% { transform: translateY(-2px) rotate(-2deg); }
+  75% { transform: translateY(-3px) rotate(1deg); }
+}
+
+/* ── Sparkle (Completed Level) ── */
+@keyframes sparkle {
+  0%, 100% { opacity: 0; transform: scale(0) rotate(0deg); }
+  50% { opacity: 1; transform: scale(1) rotate(180deg); }
+}
+
+/* ── Confetti ── */
+@keyframes confettiFall {
+  0% {
+    transform: translateY(-100vh) rotate(0deg);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(100vh) rotate(720deg);
+    opacity: 0;
+  }
+}
+
+@keyframes confettiSwirl {
+  0% { transform: translateX(0) rotate(0deg); }
+  25% { transform: translateX(15px) rotate(90deg); }
+  50% { transform: translateX(-10px) rotate(180deg); }
+  75% { transform: translateX(20px) rotate(270deg); }
+  100% { transform: translateX(0) rotate(360deg); }
+}
+
+/* ── XP Counter Roll ── */
+@keyframes numberRoll {
+  0% { transform: translateY(100%); opacity: 0; }
+  30% { transform: translateY(0); opacity: 1; }
+  100% { transform: translateY(0); opacity: 1; }
+}
+
+/* ── Slide Up (Bottom Sheet) ── */
+@keyframes slideUp {
+  0% { transform: translateY(100%); }
+  100% { transform: translateY(0); }
+}
+
+@keyframes slideDown {
+  0% { transform: translateY(0); }
+  100% { transform: translateY(100%); }
+}
+
+@keyframes fadeIn {
+  0% { opacity: 0; }
+  100% { opacity: 1; }
+}
+
+@keyframes fadeOut {
+  0% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+/* ── Float (Background Decorations) ── */
+@keyframes float {
+  0%, 100% { transform: translateY(0) translateX(0); }
+  25% { transform: translateY(-8px) translateX(4px); }
+  50% { transform: translateY(-4px) translateX(-3px); }
+  75% { transform: translateY(-10px) translateX(6px); }
+}
+
+@keyframes floatSlow {
+  0%, 100% { transform: translateY(0) translateX(0) scale(1); }
+  50% { transform: translateY(-15px) translateX(8px) scale(1.05); }
+}
+
+/* ── Scale In (Level Unlock) ── */
+@keyframes scaleIn {
+  0% { transform: scale(0); opacity: 0; }
+  60% { transform: scale(1.15); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+@keyframes bounceIn {
+  0% { transform: scale(0.3); opacity: 0; }
+  50% { transform: scale(1.1); }
+  70% { transform: scale(0.95); }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+/* ── Shake (Locked node tap) ── */
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-4px); }
+  40% { transform: translateX(4px); }
+  60% { transform: translateX(-3px); }
+  80% { transform: translateX(3px); }
+}
+
+/* ── Star Burst (Boss Defeat) ── */
+@keyframes starBurst {
+  0% { transform: scale(0) rotate(0deg); opacity: 1; }
+  50% { transform: scale(1.5) rotate(180deg); opacity: 0.8; }
+  100% { transform: scale(2) rotate(360deg); opacity: 0; }
+}
+
+/* ── Progress Ring ── */
+@keyframes progressFill {
+  0% { stroke-dashoffset: var(--circumference, 283); }
+  100% { stroke-dashoffset: var(--dash-offset, 0); }
+}
+
+/* ── XP Bar Fill ── */
+@keyframes xpBarFill {
+  0% { width: var(--xp-from, 0%); }
+  100% { width: var(--xp-to, 0%); }
+}
+
+/* ── Utility Classes ── */
+.journey-path-line {
+  stroke-dasharray: 12 8;
+  animation: pathFlow 1.5s linear infinite;
+}
+
+.journey-path-completed {
+  stroke-dasharray: none;
+  animation: none;
+}
+
+.journey-node-active {
+  animation: pulseGlow 2s ease-in-out infinite;
+}
+
+.journey-node-locked {
+  filter: grayscale(0.7) opacity(0.5);
+}
+
+.journey-node-shake {
+  animation: shake 0.5s ease-in-out;
+}
+
+.journey-crown {
+  animation: crownBounce 3s ease-in-out infinite;
+}
+
+.journey-sparkle {
+  animation: sparkle 2s ease-in-out infinite;
+}
+
+.journey-confetti-piece {
+  animation: confettiFall 3s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+}
+
+.journey-slide-up {
+  animation: slideUp 0.4s cubic-bezier(0.32, 0.72, 0, 1) forwards;
+}
+
+.journey-slide-down {
+  animation: slideDown 0.3s ease-in forwards;
+}
+
+.journey-fade-in {
+  animation: fadeIn 0.3s ease-out forwards;
+}
+
+.journey-scale-in {
+  animation: scaleIn 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+.journey-bounce-in {
+  animation: bounceIn 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+.journey-float {
+  animation: float 6s ease-in-out infinite;
+}
+
+.journey-float-slow {
+  animation: floatSlow 8s ease-in-out infinite;
+}
+
+.journey-number-roll {
+  animation: numberRoll 0.6s ease-out forwards;
+}
+
+/* ── Confetti Colors ── */
+.confetti-1 { background: #ff6b6b; }
+.confetti-2 { background: #feca57; }
+.confetti-3 { background: #48dbfb; }
+.confetti-4 { background: #ff9ff3; }
+.confetti-5 { background: #54a0ff; }
+.confetti-6 { background: #5f27cd; }
+.confetti-7 { background: #01a3a4; }
+.confetti-8 { background: #ff6348; }
+
+/* ── Progress Ring ── */
+.journey-progress-ring {
+  transform: rotate(-90deg);
+  transform-origin: center;
+}
+
+.journey-progress-ring circle.progress {
+  animation: progressFill 1s ease-out forwards;
+  transition: stroke-dashoffset 0.8s ease-out;
+}
+
+/* ── Scrollbar ── */
+.journey-scroll::-webkit-scrollbar {
+  width: 0;
+  display: none;
+}
+
+.journey-scroll {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* ── World Background Gradients (Light Theme) ── */
+.world-bg-1 { background: linear-gradient(180deg, #f8fafc 0%, #dc26260d 50%, #f8fafc 100%); }
+.world-bg-2 { background: linear-gradient(180deg, #f8fafc 0%, #0284c70d 50%, #f8fafc 100%); }
+.world-bg-3 { background: linear-gradient(180deg, #f8fafc 0%, #ea580c0d 50%, #f8fafc 100%); }
+.world-bg-4 { background: linear-gradient(180deg, #f8fafc 0%, #9333ea0d 50%, #f8fafc 100%); }
+.world-bg-5 { background: linear-gradient(180deg, #f8fafc 0%, #ca8a040d 50%, #f8fafc 100%); }

@@ -96,6 +96,28 @@
   50% { transform: scale(1.05, 0.95); }
 }
 
+@keyframes waterWave {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+
+@keyframes floatBubble {
+  0% {
+    transform: translateY(100%) scale(0.3);
+    opacity: 0;
+  }
+  20% {
+    opacity: 0.8;
+  }
+  80% {
+    opacity: 0.8;
+  }
+  100% {
+    transform: translateY(-90px) scale(1.2);
+    opacity: 0;
+  }
+}
+
 @keyframes smoothPan {
   0% { transform: scale(1) translate3d(0, 0, 0); }
   100% { transform: scale(1.05) translate3d(-1.5%, -1.5%, 0); }

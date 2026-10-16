@@ -9,31 +9,31 @@ import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { MobileDashNav } from "@/components/MobileDashNav";
-import { Home, ShoppingCart, ShoppingBag, MapPin, FileText, LogOut, UserRound, Apple, Activity, Lock, ArrowRight, CheckCircle2, BadgeCheck, Sparkles } from "lucide-react";
+import { Home, ShoppingCart, ShoppingBag, MapPin, FileText, LogOut, UserRound, Apple, Activity, Lock, ArrowRight, CheckCircle2, BadgeCheck, Sparkles, Map } from "lucide-react";
 
 import { SubscriptionProvider, useSubscription } from "@/context/SubscriptionContext";
+import AssistantWidget from "@/components/assistant/AssistantWidget";
 
 function DashboardSidebar({ user, initials, displayName, userId, navItems, isActive, handleSignOut }: any) {
   const { subscriptions, loading: subLoading } = useSubscription();
 
   return (
-    <aside className="w-64 shrink-0 hidden md:flex flex-col bg-slate-900 border-r border-slate-800 py-8 px-5 gap-6 text-white shadow-xl">
-      <div className="flex flex-col items-center text-center p-4 bg-slate-800/40 rounded-2xl border border-slate-800 relative overflow-hidden">
+    <aside className="w-64 shrink-0 hidden md:flex flex-col h-screen sticky top-0 bg-white border-r border-slate-200/80 py-8 px-5 gap-6 text-slate-900 shadow-sm overflow-y-auto">
+      <div className="flex flex-col items-center text-center p-4 bg-slate-50 border border-slate-200/80 rounded-2xl relative overflow-hidden shrink-0">
         <div className="absolute top-0 right-0 w-24 h-24 bg-blue-500/10 rounded-full blur-xl -mr-6 -mt-6" />
-        <div className="w-16 h-16 rounded-full bg-linear-to-tr from-blue-600 to-indigo-600 flex items-center justify-center text-white text-xl font-bold shadow-lg ring-4 ring-slate-800">
+        <div className="w-16 h-16 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center text-white text-xl font-bold shadow-md ring-4 ring-white">
           {initials}
         </div>
-        <p className="font-bold text-sm mt-3 text-slate-100">{displayName}</p>
-        <p className="text-[11px] text-slate-400 mt-0.5 truncate w-full">{user?.email}</p>
-        <p className="text-[10px] text-slate-500 mt-1 font-mono">ID: {userId}</p>
+        <p className="font-bold text-sm mt-3 text-slate-900">{displayName}</p>
+        <p className="text-xs  text-slate-500 mt-0.5 truncate w-full">{user?.email}</p>
         
         {/* Subscription Badges */}
         {!subLoading && subscriptions.length > 0 && (
           <div className="mt-3 flex flex-wrap justify-center gap-1.5 w-full">
-            {subscriptions.map((sub) => {
+            {subscriptions.map((sub: any) => {
               const name = sub.plans?.name || sub.inventory?.name || sub.plan_type
               return (
-                <span key={sub.id} className="bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">
+                <span key={sub.id} className="bg-emerald-50 border border-emerald-200 text-emerald-700 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">
                   {name}
                 </span>
               )
@@ -42,7 +42,7 @@ function DashboardSidebar({ user, initials, displayName, userId, navItems, isAct
         )}
       </div>
 
-      <nav className="flex flex-col gap-1.5">
+      <nav className="flex flex-col gap-1.5 flex-1">
         {navItems.map(({ label, icon, href, badge }: any) => {
           const active = isActive(href.split("?")[0]);
           return (
@@ -51,12 +51,12 @@ function DashboardSidebar({ user, initials, displayName, userId, navItems, isAct
               href={href}
               className={`flex items-center justify-between px-4 py-3 rounded-xl text-sm font-semibold transition-all duration-200 ${
                 active
-                  ? "bg-blue-600 text-white shadow-md shadow-blue-900/20"
-                  : "text-slate-400 hover:bg-slate-800 hover:text-white"
+                  ? "bg-blue-600 text-white shadow-md shadow-blue-500/20"
+                  : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
               }`}
             >
               <div className="flex items-center gap-3">
-                <span className={active ? "text-white" : "text-slate-500"}>{icon}</span>
+                <span className={active ? "text-white" : "text-slate-400"}>{icon}</span>
                 {label}
               </div>
               {badge !== undefined && badge > 0 && (
@@ -71,9 +71,9 @@ function DashboardSidebar({ user, initials, displayName, userId, navItems, isAct
 
       <button
         onClick={handleSignOut}
-        className="mt-auto inline-flex items-center justify-center gap-2 rounded-xl border border-slate-700 px-4 py-3 text-sm font-semibold text-slate-400 transition hover:bg-slate-800 hover:text-white"
+        className="mt-auto inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 px-4 py-3 text-sm font-semibold text-slate-600 transition hover:bg-slate-100 hover:text-slate-900 shrink-0 cursor-pointer"
       >
-        <LogOut className="w-4 h-4" />
+        <LogOut className="w-4 h-4 text-slate-500" />
         Sign out
       </button>
     </aside>
@@ -235,6 +235,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     { label: "Dashboard", icon: <Home className="w-4 h-4" />, href: `/dashboard${qs}` },
     { label: "Diet Plan", icon: <Apple className="w-4 h-4" />, href: `/dashboard/diet${qs}` },
     { label: "Exercise", icon: <Activity className="w-4 h-4" />, href: `/dashboard/exercise${qs}` },
+    { label: "Journey", icon: <Map className="w-4 h-4" />, href: `/dashboard/games${qs}` },
     { label: "Cart", icon: <ShoppingCart className="w-4 h-4" />, href: `/dashboard/cart${qs}`, badge: cartCount },
     { label: "Orders", icon: <ShoppingBag className="w-4 h-4" />, href: `/dashboard/order${qs}` },
     // { label: "Track", icon: <MapPin className="w-4 h-4" />, href: `/dashboard/track${qs}` },
@@ -254,7 +255,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   return (
     <SubscriptionProvider>
-      <div className="flex min-h-screen bg-slate-50 pb-16 md:pb-0">
+      <div className="flex h-screen w-full bg-slate-50 pb-16 md:pb-0 overflow-hidden">
         <DashboardSidebar 
           user={user} 
           initials={initials} 
@@ -265,11 +266,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           handleSignOut={handleSignOut} 
         />
 
-        <div className="flex-1 flex flex-col min-w-0 min-h-0 overflow-hidden">
+        <div className="flex-1 flex flex-col min-w-0 h-full overflow-y-auto">
           {children}
         </div>
 
         <MobileDashNav />
+        <AssistantWidget user={user} />
       </div>
     </SubscriptionProvider>
   );
