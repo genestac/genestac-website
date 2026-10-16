@@ -1,5 +1,6 @@
 import { MetadataRoute } from 'next'
 import { supabase } from "@/lib/supabase"
+import { generateAllCompareSlugs } from "@/data/foods"
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const baseUrl = 'https://www.genestac.com'
@@ -73,5 +74,14 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: 0.8,
   }))
 
-  return [...staticRoutes, ...blogUrls, ...productUrls]
+  // Compare pages (programmatic SEO)
+  const compareSlugs = generateAllCompareSlugs();
+  const compareUrls = compareSlugs.map((slug) => ({
+    url: `${baseUrl}/compare/${slug}`,
+    lastModified: new Date(),
+    changeFrequency: 'monthly' as const,
+    priority: 0.6,
+  }))
+
+  return [...staticRoutes, ...blogUrls, ...productUrls, ...compareUrls]
 }
